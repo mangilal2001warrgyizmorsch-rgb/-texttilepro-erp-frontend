@@ -51,7 +51,7 @@ type EditableResult = {
 };
 
 type Props = {
-  onFill: (data: OcrResult | any[]) => void;
+  onFill: (data: any) => void;
   onClose: () => void;
 };
 
@@ -64,8 +64,8 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
 
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [lastFile, setLastFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [storageId, setStorageId] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [editable, setEditable] = useState<EditableResult | null>(null);
@@ -74,6 +74,7 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
     setUploading(true);
     setOcrResult(null);
     setEditable(null);
+    setLastFile(file);
     try {
       // Show preview
       if (file.type.startsWith("image/")) {
@@ -144,7 +145,7 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
   };
 
   const handleRetry = () => {
-    if (storageId) runOcr(storageId, mimeType);
+    if (lastFile) runOcr(lastFile);
   };
 
   const handleConfirm = () => {

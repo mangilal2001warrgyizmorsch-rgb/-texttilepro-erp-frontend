@@ -152,15 +152,15 @@ function buildUrl(endpoint: string, args: any = {}) {
   return qStr ? `${url}?${qStr}` : url;
 }
 
-export function useQuery(apiAction: ApiEndpoint, args?: any) {
+export function useQuery(apiAction: ApiEndpoint | "skip" | null | undefined, args?: any) {
   // If apiAction is missing (happens when passing skip token), skip
   const skip = apiAction === "skip" || !apiAction;
   
   const { data } = useReactQuery({
-    queryKey: [apiAction?.endpoint, args],
+    queryKey: [(apiAction as any)?.endpoint || apiAction, args],
     queryFn: () => {
       if (skip) return null;
-      return baseApi.get(buildUrl(apiAction.endpoint, args));
+      return baseApi.get(buildUrl((apiAction as any).endpoint, args));
     },
     enabled: !skip,
   });
