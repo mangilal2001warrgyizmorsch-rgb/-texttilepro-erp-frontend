@@ -20,8 +20,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      
-      <body className={`${inter.className} antialiased`}>
+      <head />
+      <body className={`${inter.className} antialiased`} suppressHydrationWarning>
         <DefaultProviders>{children}</DefaultProviders>
       </body>
     </html>
