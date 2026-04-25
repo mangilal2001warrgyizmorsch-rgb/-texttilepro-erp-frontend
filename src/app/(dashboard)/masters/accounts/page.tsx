@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {  useQuery, useMutation  } from "@/lib/convex-mock";
-import { api } from "@/lib/convex-mock";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,10 +83,27 @@ const defaultForm: FormData = {
 };
 
 export default function AccountsPage() {
-  const accounts = useQuery(api.accounts.list, {});
-  const createAccount = useMutation(api.accounts.create);
-  const updateAccount = useMutation(api.accounts.update);
-  const removeAccount = useMutation(api.accounts.delete);
+  const queryClient = useQueryClient();
+  
+  const { data: accounts } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => api.get<any[]>("/accounts"),
+  });
+
+  const createAccount = useMutation({
+    mutationFn: (data: any) => api.post("/accounts", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] })
+  });
+  
+  const updateAccount = useMutation({
+    mutationFn: (data: any) => api.patch(`/accounts/${data.id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] })
+  });
+
+  const removeAccount = useMutation({
+    mutationFn: (data: { id: string }) => api.delete(`/accounts/${data.id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] })
+  });
 
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
@@ -162,10 +179,10 @@ export default function AccountsPage() {
         isActive: form.isActive,
       };
       if (editId) {
-        await updateAccount({ id: editId, ...payload });
+        await updateAccount.mutateAsync({ id: editId, ...payload });
         toast.success("Account updated");
       } else {
-        await createAccount(payload);
+        await createAccount.mutateAsync(payload);
         toast.success("Account created");
       }
       setOpen(false);
@@ -176,7 +193,7 @@ export default function AccountsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await removeAccount({ id });
+      await removeAccount.mutateAsync({ id });
       toast.success("Account deleted");
     } catch {
       toast.error("Failed to delete");

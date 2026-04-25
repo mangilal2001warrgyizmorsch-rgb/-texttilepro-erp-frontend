@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {  useQuery, useMutation  } from "@/lib/convex-mock";
-import { api } from "@/lib/convex-mock";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,10 +41,27 @@ const defaultForm: FormData = {
 };
 
 export default function WeaversPage() {
-  const weavers = useQuery(api.weavers.list, {});
-  const createWeaver = useMutation(api.weavers.create);
-  const updateWeaver = useMutation(api.weavers.update);
-  const removeWeaver = useMutation(api.weavers.delete);
+  const queryClient = useQueryClient();
+  
+  const { data: weavers } = useQuery({
+    queryKey: ["weavers"],
+    queryFn: () => api.get<any[]>("/weavers"),
+  });
+
+  const createWeaver = useMutation({
+    mutationFn: (data: any) => api.post("/weavers", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["weavers"] })
+  });
+  
+  const updateWeaver = useMutation({
+    mutationFn: (data: any) => api.patch(`/weavers/${data.id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["weavers"] })
+  });
+
+  const removeWeaver = useMutation({
+    mutationFn: (data: { id: string }) => api.delete(`/weavers/${data.id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["weavers"] })
+  });
 
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -84,7 +101,7 @@ export default function WeaversPage() {
     }
     try {
       if (editId) {
-        await updateWeaver({
+        await updateWeaver.mutateAsync({
           id: editId,
           weaverName: form.weaverName,
           weaverCode: form.weaverCode,
@@ -93,7 +110,7 @@ export default function WeaversPage() {
         });
         toast.success("Weaver updated");
       } else {
-        await createWeaver({
+        await createWeaver.mutateAsync({
           weaverName: form.weaverName,
           weaverCode: form.weaverCode,
           mobileNo: form.mobileNo || undefined,
@@ -109,7 +126,7 @@ export default function WeaversPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await removeWeaver({ id });
+      await removeWeaver.mutateAsync({ id });
       toast.success("Deleted");
     } catch {
       toast.error("Failed to delete");

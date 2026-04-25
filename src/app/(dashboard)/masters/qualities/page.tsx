@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {  useQuery, useMutation  } from "@/lib/convex-mock";
-import { api } from "@/lib/convex-mock";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,10 +71,27 @@ const PROCESS_COLORS: Record<ProcessType, string> = {
 };
 
 export default function QualitiesPage() {
-  const qualities = useQuery(api.qualities.list, {});
-  const createQuality = useMutation(api.qualities.create);
-  const updateQuality = useMutation(api.qualities.update);
-  const removeQuality = useMutation(api.qualities.delete);
+  const queryClient = useQueryClient();
+  
+  const { data: qualities } = useQuery({
+    queryKey: ["qualities"],
+    queryFn: () => api.get<any[]>("/qualities"),
+  });
+
+  const createQuality = useMutation({
+    mutationFn: (data: any) => api.post("/qualities", data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["qualities"] })
+  });
+  
+  const updateQuality = useMutation({
+    mutationFn: (data: any) => api.patch(`/qualities/${data.id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["qualities"] })
+  });
+
+  const removeQuality = useMutation({
+    mutationFn: (data: { id: string }) => api.delete(`/qualities/${data.id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["qualities"] })
+  });
 
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -133,10 +150,10 @@ export default function QualitiesPage() {
         dispatchRate: num(form.dispatchRate),
       };
       if (editId) {
-        await updateQuality({ id: editId, ...payload });
+        await updateQuality.mutateAsync({ id: editId, ...payload });
         toast.success("Quality updated");
       } else {
-        await createQuality(payload);
+        await createQuality.mutateAsync(payload);
         toast.success("Quality created");
       }
       setOpen(false);
@@ -147,7 +164,7 @@ export default function QualitiesPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await removeQuality({ id });
+      await removeQuality.mutateAsync({ id });
       toast.success("Deleted");
     } catch {
       toast.error("Failed to delete");
