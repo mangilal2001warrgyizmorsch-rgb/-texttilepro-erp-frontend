@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 
 type TakaRow = {
   takaNo: string;
+  marka: string;
   meter: string;
   weight: string;
 };
@@ -41,11 +42,16 @@ type OrderForm = {
   orderDate: string;
   firmId: string;
   firmName: string;
+  partyId: string;
+  partyName: string;
+  partyNotFound?: boolean;
   marka: string;
-  weaverId: string;
+  challanNo: string;
   weaverChNo: string;
   weaverMarka: string;
   weaverChDate: string;
+  weaverId: string;
+  weaverName: string;
   qualityId: string;
   qualityName: string;
   totalTaka: string;
@@ -58,8 +64,12 @@ const emptyOrder = (): OrderForm => ({
   orderDate: new Date().toISOString().split("T")[0],
   firmId: "",
   firmName: "",
+  partyId: "",
+  partyName: "",
   marka: "",
   weaverId: "",
+  weaverName: "",
+  challanNo: "",
   weaverChNo: "",
   weaverMarka: "",
   weaverChDate: "",
@@ -68,7 +78,7 @@ const emptyOrder = (): OrderForm => ({
   totalTaka: "",
   totalMeter: "",
   shippingMode: "DirectMills",
-  takaDetails: [{ takaNo: "1", meter: "", weight: "" }],
+  takaDetails: [{ takaNo: "1", marka: "", meter: "", weight: "" }],
 });
 
 export function BatchOrderEntry() {
@@ -83,6 +93,7 @@ export function BatchOrderEntry() {
   const [showOcr, setShowOcr] = useState(false);
 
   const mills = (accounts ?? []).filter((a) => a.roleType === "Mill" && a.isActive);
+  const masterAccounts = (accounts ?? []).filter((a) => ["Master", "Customer", "Supplier"].includes(a.roleType) && a.isActive);
 
   // Field update helpers
   const updateField = (field: keyof OrderForm, value: any) => {
@@ -111,7 +122,7 @@ export function BatchOrderEntry() {
           ...o,
           takaDetails: [
             ...o.takaDetails,
-            { takaNo: String(o.takaDetails.length + 1), meter: "", weight: "" },
+            { takaNo: String(o.takaDetails.length + 1), marka: "", meter: "", weight: "" },
           ],
         };
       })
@@ -139,6 +150,7 @@ export function BatchOrderEntry() {
         "takaDetails",
         Array.from({ length: n }, (_, i) => ({
           takaNo: String(i + 1),
+          marka: "",
           meter: "",
           weight: "",
         }))
@@ -171,34 +183,47 @@ export function BatchOrderEntry() {
         // Multi-challan (Batch mode)
         const mapped = challans.map((c: any) => ({
           ...emptyOrder(),
-          weaverChNo: c.challanNo || c.challan_no || "",
+          weaverChNo: (c.challanNo || c.challan_no || "").toString(),
           orderDate: c.date || c.orderDate || new Date().toISOString().split("T")[0],
           qualityName: c.qualityName || c.quality || "",
           totalMeter: (c.totalMeter || c.meter || "").toString(),
           totalTaka: (c.takaCount || c.taka || "").toString(),
-          firmId: c.millId || "",
+          firmId: c.firmId || "",
+          partyId: c.partyId || "",
+          partyName: c.partyName || "",
+          partyNotFound: c.partyNotFound || false,
           qualityId: c.qualityId || "",
           weaverId: c.weaverId || "",
           takaDetails: (c.takaRows || c.table || []).map((r: any) => ({
             takaNo: (r.takaNo || r.tn || "").toString(),
+            marka: (r.marka || r.mka || "").toString(),
             meter: (r.meter || "").toString(),
             weight: (r.weight || "").toString(),
           })),
         }));
         setOrders(mapped);
         setCurrent(0);
+        if (mapped.some(m => m.partyNotFound)) {
+          toast.warning("Some parties not found in master — please review");
+        }
       } else {
         // Single fill for current slide
         const result = challans[0];
         const o = orders[current];
-        updateField("weaverChNo", result.challanNo || result.challan_no || o.weaverChNo);
+        updateField("weaverChNo", (result.challanNo || result.challan_no || o.weaverChNo).toString());
         updateField("orderDate", result.date || result.orderDate || o.orderDate);
         updateField("qualityName", result.qualityName || result.quality || o.qualityName);
         updateField("totalMeter", (result.totalMeter || result.meter || o.totalMeter).toString());
-        updateField("totalTaka", (result.takaCount || result.taka || o.totalTaka).toString());
+        updateField("totalTaka", (result.totalTaka || result.takaCount || result.taka || o.totalTaka).toString());
         
         // Auto-link to created/found master IDs
-        if (result.millId) updateField("firmId", result.millId);
+        if (result.firmId) updateField("firmId", result.firmId);
+        if (result.partyId) updateField("partyId", result.partyId);
+        if (result.partyName) updateField("partyName", result.partyName);
+        if (result.partyNotFound) {
+          updateField("partyNotFound", true);
+          toast.error(`${result.partyName} not found in master, create new`);
+        }
         if (result.qualityId) updateField("qualityId", result.qualityId);
         if (result.weaverId) updateField("weaverId", result.weaverId);
 
@@ -208,6 +233,7 @@ export function BatchOrderEntry() {
             "takaDetails",
             takas.map((r: any) => ({
               takaNo: (r.takaNo || r.tn || "").toString(),
+              marka: (r.marka || r.mka || "").toString(),
               meter: (r.meter || "").toString(),
               weight: (r.weight || "").toString(),
             }))
@@ -234,6 +260,7 @@ export function BatchOrderEntry() {
       const payload = orders.map(o => ({
         ...o,
         firmName: mills.find(m => m._id === o.firmId)?.accountName || o.firmName,
+        partyName: masterAccounts.find(m => m._id === o.partyId)?.accountName || o.partyName,
         totalTaka: Number(o.totalTaka),
         totalMeter: Number(o.totalMeter),
         takaDetails: o.takaDetails.map(t => ({
@@ -293,7 +320,7 @@ export function BatchOrderEntry() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0">
         
         {/* Left Column: Form Container */}
-        <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full min-h-0 bg-card border rounded-xl overflow-hidden shadow-sm">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0 bg-card border rounded-xl overflow-hidden shadow-sm">
           
           {/* Slider Navigation */}
           <div className="flex items-center justify-between p-3 border-b bg-muted/20 shrink-0">
@@ -345,34 +372,61 @@ export function BatchOrderEntry() {
                        <FileText size={16} />
                        <h3 className="text-xs font-bold uppercase tracking-wider">Source Details</h3>
                     </div>
-                    <div className="space-y-2">
-                       <Label className="text-xs">Firm (Mill) *</Label>
-                       <Select value={form.firmId} onValueChange={(v) => updateField("firmId", v)}>
-                         <SelectTrigger className="h-9"><SelectValue placeholder="Select mill..." /></SelectTrigger>
-                         <SelectContent>
-                           {mills.map((m) => (
-                             <SelectItem key={m._id} value={m._id}>{m.accountName}</SelectItem>
-                           ))}
-                         </SelectContent>
-                       </Select>
-                    </div>
-                     <div className="grid grid-cols-2 gap-4">
-                       <div className="space-y-2">
-                          <Label className="text-xs">Challan No *</Label>
-                          <Input className="h-9 font-mono" value={form.weaverChNo} onChange={(e) => updateField("weaverChNo", e.target.value)} />
-                       </div>
-                       <div className="space-y-2">
-                          <Label className="text-xs">Shipping Mode *</Label>
-                          <Select value={form.shippingMode} onValueChange={(v: any) => updateField("shippingMode", v)}>
-                            <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="DirectMills">Direct Mills</SelectItem>
-                              <SelectItem value="MarketTempo">Market Tempo</SelectItem>
-                              <SelectItem value="ByLR">By LR</SelectItem>
-                            </SelectContent>
-                          </Select>
-                       </div>
-                    </div>
+                     <div className="space-y-2">
+                        <Label className="text-xs">Firm (Mill) *</Label>
+                        <Select value={form.firmId} onValueChange={(v) => updateField("firmId", v)}>
+                          <SelectTrigger className="h-9"><SelectValue placeholder="Select mill..." /></SelectTrigger>
+                          <SelectContent>
+                            {mills.map((m) => (
+                              <SelectItem key={m._id} value={m._id}>{m.accountName}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                     </div>
+                     <div className="space-y-2">
+                        <Label className={cn("text-xs", form.partyNotFound && "text-destructive font-bold")}>
+                          Party * {form.partyNotFound && "(NOT FOUND IN MASTER)"}
+                        </Label>
+                        <Select value={form.partyId} onValueChange={(v) => {
+                          const p = masterAccounts.find(x => x._id === v);
+                          updateField("partyId", v);
+                          updateField("partyName", p?.accountName || "");
+                          updateField("partyNotFound", false);
+                        }}>
+                          <SelectTrigger className={cn("h-9", form.partyNotFound && "border-destructive")}>
+                            <SelectValue placeholder={form.partyNotFound ? `${form.partyName} (Not Found)` : "Select party..."} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {masterAccounts.map((m) => (
+                              <SelectItem key={m._id} value={m._id}>{m.accountName}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {form.partyNotFound && (
+                          <p className="text-[10px] text-destructive italic">Not found in master — please create new or select existing</p>
+                        )}
+                     </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                           <Label className="text-xs">Challan No</Label>
+                           <Input className="h-9 font-mono" value={form.challanNo} onChange={(e) => updateField("challanNo", e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                           <Label className="text-xs">Weaver Challan No *</Label>
+                           <Input className="h-9 font-mono" value={form.weaverChNo} onChange={(e) => updateField("weaverChNo", e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                           <Label className="text-xs">Shipping Mode *</Label>
+                           <Select value={form.shippingMode} onValueChange={(v: any) => updateField("shippingMode", v)}>
+                             <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
+                             <SelectContent>
+                               <SelectItem value="DirectMills">Direct Mills</SelectItem>
+                               <SelectItem value="MarketTempo">Market Tempo</SelectItem>
+                               <SelectItem value="ByLR">By LR</SelectItem>
+                             </SelectContent>
+                           </Select>
+                        </div>
+                      </div>
                     <div className="space-y-2">
                         <Label className="text-xs">Order Date</Label>
                         <Input className="h-9" type="date" value={form.orderDate} onChange={(e) => updateField("orderDate", e.target.value)} />
@@ -444,7 +498,7 @@ export function BatchOrderEntry() {
         </div>
 
         {/* Right Column: Taka Details Table (Independent Scroll) */}
-        <div className="lg:col-span-4 xl:col-span-3 h-[400px] lg:h-full flex flex-col min-h-0 bg-card border rounded-xl overflow-hidden shadow-sm">
+        <div className="lg:col-span-5 xl:col-span-4 h-[400px] lg:h-full flex flex-col min-h-0 bg-card border rounded-xl overflow-hidden shadow-sm">
           <div className="flex items-center justify-between p-3 border-b bg-muted/20 shrink-0">
             <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Taka Entry</h3>
             <Button size="sm" variant="secondary" className="h-7 text-xs px-3 cursor-pointer rounded-full font-semibold" onClick={addTakaRow}>
@@ -457,6 +511,7 @@ export function BatchOrderEntry() {
               <thead className="bg-muted/40 sticky top-0 z-10 border-b backdrop-blur-sm">
                 <tr>
                   <th className="text-center px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase w-16">TN</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Marka</th>
                   <th className="text-left px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Meter</th>
                   <th className="w-10"></th>
                 </tr>
@@ -468,6 +523,13 @@ export function BatchOrderEntry() {
                 {form.takaDetails.map((row, idx) => (
                   <tr key={idx} className="hover:bg-muted/30 transition-colors group">
                     <td className="px-4 py-2 text-center font-medium text-muted-foreground">{row.takaNo}</td>
+                    <td className="px-4 py-2">
+                      <Input
+                        className="h-8 text-sm bg-transparent border-transparent hover:border-border focus:border-primary transition-colors px-2"
+                        value={row.marka}
+                        onChange={(e) => updateTaka(idx, "marka", e.target.value)}
+                      />
+                    </td>
                     <td className="px-4 py-2">
                       <Input
                         type="number"

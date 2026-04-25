@@ -47,7 +47,7 @@ const emptyForm = () => ({
   chadhti: "",
   width: "",
   total: "",
-  table: [] as { tn: number; meter: string }[],
+  table: [] as { tn: number; marka: string; meter: string }[],
 });
 
 export default function ChallanPageWrapper() {
@@ -99,7 +99,7 @@ function ChallanEntry() {
   });
 
   const mills = accounts?.filter(a => a.roleType === "Mill") || [];
-  const masters = accounts?.filter(a => a.roleType === "Master") || [];
+  const masters = accounts?.filter(a => ["Master", "Customer", "Supplier"].includes(a.roleType)) || [];
   const transporters = accounts?.filter(a => a.roleType === "Transporter") || [];
 
   const onPartyChange = (val: string) => {
@@ -277,7 +277,7 @@ function ChallanEntry() {
         if (i !== current) return c;
         return {
           ...c,
-          table: [...c.table, { tn: c.table.length + 1, meter: "" }],
+          table: [...c.table, { tn: c.table.length + 1, marka: "", meter: "" }],
         };
       })
     );
@@ -359,7 +359,7 @@ function ChallanEntry() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
 
         {/* Left Column: Form Container */}
-        <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full bg-card border rounded-xl overflow-hidden shadow-sm">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full bg-card border rounded-xl overflow-hidden shadow-sm">
 
           {/* Navigation Bar inside the form area */}
           <div className="flex items-center justify-between p-3 border-b bg-muted/20 shrink-0">
@@ -604,7 +604,7 @@ function ChallanEntry() {
         </div>
 
         {/* Right Column: Taka Details Table (Independent Scroll) */}
-        <div className="lg:col-span-4 xl:col-span-3 h-[400px] lg:h-full flex flex-col bg-card border rounded-xl overflow-hidden shadow-sm">
+        <div className="lg:col-span-5 xl:col-span-4 h-[400px] lg:h-full flex flex-col bg-card border rounded-xl overflow-hidden shadow-sm">
           <div className="flex items-center justify-between p-3 border-b bg-muted/20 shrink-0">
             <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Taka Details</h3>
             <Button size="sm" variant="secondary" className="h-7 text-xs px-3 cursor-pointer rounded-full font-semibold" onClick={addRow}>
@@ -617,6 +617,7 @@ function ChallanEntry() {
               <thead className="bg-muted/40 sticky top-0 z-10 border-b backdrop-blur-sm">
                 <tr>
                   <th className="text-center px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase w-16">TN</th>
+                  <th className="text-left px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Marka</th>
                   <th className="text-left px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Meter</th>
                   <th className="w-10"></th>
                 </tr>
@@ -632,6 +633,22 @@ function ChallanEntry() {
                 {form.table.map((row, idx) => (
                   <tr key={idx} className="hover:bg-muted/30 transition-colors group">
                     <td className="px-4 py-2 text-center font-medium text-muted-foreground">{row.tn}</td>
+                    <td className="px-4 py-2">
+                      <Input
+                        className="h-8 text-sm bg-transparent border-transparent hover:border-border focus:border-primary transition-colors px-2"
+                        value={row.marka || ""}
+                        onChange={(e) => {
+                          setChallans((prev) =>
+                            prev.map((c, i) => {
+                              if (i !== current) return c;
+                              const table = [...c.table];
+                              table[idx] = { ...table[idx], marka: e.target.value };
+                              return { ...c, table };
+                            })
+                          );
+                        }}
+                      />
+                    </td>
                     <td className="px-4 py-2">
                       <Input
                         type="number"
@@ -874,6 +891,7 @@ function ChallanDetailDialog({ challan, onClose }: { challan: any; onClose: () =
                       <thead className="bg-muted/50 sticky top-0 border-b z-10 shadow-sm backdrop-blur-sm">
                         <tr>
                           <th className="text-center px-2 py-2 font-semibold w-16">T.N.</th>
+                          <th className="text-left px-4 py-2 font-semibold">Marka</th>
                           <th className="text-right px-4 py-2 font-semibold">Meter</th>
                         </tr>
                       </thead>
@@ -881,6 +899,7 @@ function ChallanDetailDialog({ challan, onClose }: { challan: any; onClose: () =
                         {details.table.map((row: any, i: number) => (
                           <tr key={i} className="hover:bg-muted/10">
                             <td className="text-center px-2 py-2 font-medium text-muted-foreground">{row.tn}</td>
+                            <td className="text-left px-4 py-2 font-medium">{row.marka || "—"}</td>
                             <td className="text-right px-4 py-2 font-semibold text-primary">{row.meter}</td>
                           </tr>
                         ))}
@@ -927,7 +946,7 @@ function ChallanEditDialog({ challan, onClose }: { challan: any; onClose: () => 
   });
 
   const mills = accounts?.filter(a => a.roleType === "Mill") || [];
-  const masters = accounts?.filter(a => a.roleType === "Master") || [];
+  const masters = accounts?.filter(a => ["Master", "Customer", "Supplier"].includes(a.roleType)) || [];
   const transporters = accounts?.filter(a => a.roleType === "Transporter") || [];
 
   const formatDateForInput = (d: any) => {
@@ -981,7 +1000,7 @@ function ChallanEditDialog({ challan, onClose }: { challan: any; onClose: () => 
   const addRow = () => {
     setForm((prev: any) => ({
       ...prev,
-      table: [...prev.table, { tn: prev.table.length + 1, meter: "" }],
+      table: [...prev.table, { tn: prev.table.length + 1, marka: "", meter: "" }],
     }));
   };
 
@@ -1045,7 +1064,7 @@ function ChallanEditDialog({ challan, onClose }: { challan: any; onClose: () => 
 
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-0 min-h-0">
           
-          <div className="lg:col-span-8 xl:col-span-9 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
+          <div className="lg:col-span-7 xl:col-span-8 flex flex-col h-full overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
             {/* Section: Basic Details */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 border-b pb-2">
@@ -1246,7 +1265,7 @@ function ChallanEditDialog({ challan, onClose }: { challan: any; onClose: () => 
             <div className="pb-4"></div>
           </div>
 
-          <div className="lg:col-span-4 xl:col-span-3 h-[300px] lg:h-full flex flex-col bg-card border-l overflow-hidden">
+          <div className="lg:col-span-5 xl:col-span-4 h-[300px] lg:h-full flex flex-col bg-card border-l overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b bg-muted/20 shrink-0">
               <h3 className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Taka Details</h3>
               <Button size="sm" variant="secondary" className="h-7 text-xs px-3 cursor-pointer rounded-full font-semibold" onClick={addRow}>
@@ -1259,6 +1278,7 @@ function ChallanEditDialog({ challan, onClose }: { challan: any; onClose: () => 
                 <thead className="bg-muted/40 sticky top-0 z-10 border-b backdrop-blur-sm">
                   <tr>
                     <th className="text-center px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase w-16">TN</th>
+                    <th className="text-left px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Marka</th>
                     <th className="text-left px-4 py-2.5 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Meter</th>
                     <th className="w-10"></th>
                   </tr>
@@ -1274,6 +1294,19 @@ function ChallanEditDialog({ challan, onClose }: { challan: any; onClose: () => 
                   {form.table.map((row: any, idx: number) => (
                     <tr key={idx} className="hover:bg-muted/30 transition-colors group">
                       <td className="px-4 py-2 text-center font-medium text-muted-foreground">{row.tn}</td>
+                      <td className="px-4 py-2">
+                        <Input
+                          className="h-8 text-sm bg-transparent border-transparent hover:border-border focus:border-primary transition-colors px-2"
+                          value={row.marka || ""}
+                          onChange={(e) => {
+                            setForm((prev: any) => {
+                              const table = [...prev.table];
+                              table[idx] = { ...table[idx], marka: e.target.value };
+                              return { ...prev, table };
+                            });
+                          }}
+                        />
+                      </td>
                       <td className="px-4 py-2">
                         <Input
                           type="number"

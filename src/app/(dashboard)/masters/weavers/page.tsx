@@ -29,6 +29,7 @@ import {
 type FormData = {
   weaverName: string;
   weaverCode: string;
+  gstin: string;
   mobileNo: string;
   address: string;
 };
@@ -36,6 +37,7 @@ type FormData = {
 const defaultForm: FormData = {
   weaverName: "",
   weaverCode: "",
+  gstin: "",
   mobileNo: "",
   address: "",
 };
@@ -88,6 +90,7 @@ export default function WeaversPage() {
     setForm({
       weaverName: w.weaverName,
       weaverCode: w.weaverCode,
+      gstin: w.gstin ?? "",
       mobileNo: w.mobileNo ?? "",
       address: w.address ?? "",
     });
@@ -105,6 +108,7 @@ export default function WeaversPage() {
           id: editId,
           weaverName: form.weaverName,
           weaverCode: form.weaverCode,
+          gstin: form.gstin || undefined,
           mobileNo: form.mobileNo || undefined,
           address: form.address || undefined,
         });
@@ -113,6 +117,7 @@ export default function WeaversPage() {
         await createWeaver.mutateAsync({
           weaverName: form.weaverName,
           weaverCode: form.weaverCode,
+          gstin: form.gstin || undefined,
           mobileNo: form.mobileNo || undefined,
           address: form.address || undefined,
         });
@@ -183,7 +188,8 @@ export default function WeaversPage() {
                     <span className="text-xs bg-muted px-2 py-0.5 rounded font-mono mt-1 inline-block">
                       {w.weaverCode}
                     </span>
-                    {w.mobileNo && <p className="text-xs text-muted-foreground mt-1">{w.mobileNo}</p>}
+                    {w.gstin && <p className="text-[10px] font-bold text-primary mt-1">GST: {w.gstin}</p>}
+                    {w.mobileNo && <p className="text-xs text-muted-foreground mt-0.5">{w.mobileNo}</p>}
                     {w.address && <p className="text-xs text-muted-foreground truncate max-w-[160px]">{w.address}</p>}
                   </div>
                   <div className="flex gap-1">
@@ -219,6 +225,10 @@ export default function WeaversPage() {
             <div className="space-y-1.5">
               <Label>Weaver Code *</Label>
               <Input placeholder="e.g. RW001" value={form.weaverCode} onChange={(e) => set("weaverCode", e.target.value.toUpperCase())} className="font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>GST Number</Label>
+              <Input placeholder="22AAAAA0000A1Z5" value={form.gstin} onChange={(e) => set("gstin", e.target.value.toUpperCase())} />
             </div>
             <div className="space-y-1.5">
               <Label>Mobile No</Label>

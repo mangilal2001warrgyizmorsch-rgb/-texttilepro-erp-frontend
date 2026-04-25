@@ -34,7 +34,7 @@ import {
   EmptyContent,
 } from "@/components/ui/empty";
 
-type RoleType = "Mill" | "Weaver" | "Transporter" | "Master";
+type RoleType = "Mill" | "Weaver" | "Transporter" | "Master" | "Customer" | "Supplier";
 type GstType = "Regular" | "Composition";
 
 const ROLE_COLORS: Record<RoleType, string> = {
@@ -42,6 +42,8 @@ const ROLE_COLORS: Record<RoleType, string> = {
   Weaver: "bg-purple-100 text-purple-700",
   Transporter: "bg-orange-100 text-orange-700",
   Master: "bg-green-100 text-green-700",
+  Customer: "bg-pink-100 text-pink-700",
+  Supplier: "bg-cyan-100 text-cyan-700",
 };
 
 type FormData = {
@@ -233,6 +235,8 @@ export default function AccountsPage() {
             <SelectItem value="Weaver">Weaver</SelectItem>
             <SelectItem value="Transporter">Transporter</SelectItem>
             <SelectItem value="Master">Master</SelectItem>
+            <SelectItem value="Customer">Customer</SelectItem>
+            <SelectItem value="Supplier">Supplier</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -337,6 +341,8 @@ export default function AccountsPage() {
                   <SelectItem value="Weaver">Weaver</SelectItem>
                   <SelectItem value="Transporter">Transporter</SelectItem>
                   <SelectItem value="Master">Master</SelectItem>
+                  <SelectItem value="Customer">Customer</SelectItem>
+                  <SelectItem value="Supplier">Supplier</SelectItem>
                 </SelectContent>
               </Select>
             </div>
