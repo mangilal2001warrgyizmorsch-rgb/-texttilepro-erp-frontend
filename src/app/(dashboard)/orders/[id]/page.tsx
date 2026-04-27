@@ -18,6 +18,7 @@ import {
 import { format } from "date-fns";
 
 const STATUS_COLORS: Record<string, string> = {
+  draft: "bg-gray-100 text-gray-700",
   PendingChallan: "bg-yellow-100 text-yellow-700",
   ChallanIssued: "bg-blue-100 text-blue-700",
   LotCreated: "bg-purple-100 text-purple-700",
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
+  draft: "Draft",
   PendingChallan: "Pending for Challan",
   ChallanIssued: "Challan Issued",
   LotCreated: "Lot Created",

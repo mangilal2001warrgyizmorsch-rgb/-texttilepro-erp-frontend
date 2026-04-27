@@ -68,20 +68,14 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
-  const [editable, setEditable] = useState<EditableResult | null>(null);
 
   const uploadFile = async (file: File) => {
     setUploading(true);
     setOcrResult(null);
-    setEditable(null);
     setLastFile(file);
     try {
-      // Show preview
-      if (file.type.startsWith("image/")) {
-        setPreviewUrl(URL.createObjectURL(file));
-      } else {
-        setPreviewUrl(null);
-      }
+      // Show preview for both images and PDFs
+      setPreviewUrl(URL.createObjectURL(file));
       setMimeType(file.type);
       toast.success("File uploaded — running OCR...");
       await runOcr(file);
@@ -119,7 +113,10 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
       // Handle result (compatible with batch or single)
       const result = data.challans?.[0] || data;
       setOcrResult(result);
-      setEditable({
+      toast.success("Data extracted successfully!");
+      // Automatically feed into the parent form
+      onFill({
+        ...result,
         partyName: result.partyName ?? result.firm ?? result.party ?? "",
         date: result.date ?? result.challan_date ?? result.ch_date ?? "",
         challanNo: result.challanNo ?? result.challan_no ?? "",
@@ -128,10 +125,9 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
         weaverMarka: result.weaverMarka ?? result.weaver_marka ?? "",
         chDate: result.chDate ?? result.challan_date ?? result.ch_date ?? "",
         qualityName: result.qualityName ?? result.quality ?? "",
-        takaCount: (result.takaCount ?? result.taka ?? "").toString(),
-        totalMeter: (result.totalMeter ?? result.meter ?? "").toString(),
+        takaCount: result.takaCount ?? result.taka ?? "",
+        totalMeter: result.totalMeter ?? result.meter ?? "",
       });
-      toast.success("Data extracted successfully!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "OCR failed");
     } finally {
@@ -148,26 +144,6 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
     if (lastFile) runOcr(lastFile);
   };
 
-  const handleConfirm = () => {
-    if (!ocrResult || !editable) return;
-    onFill({
-      ...ocrResult,
-      partyName: editable.partyName || ocrResult.partyName,
-      date: editable.date || ocrResult.date,
-      challanNo: editable.challanNo || ocrResult.challanNo,
-      weaverName: editable.weaverName || ocrResult.weaverName,
-      weaverChallanNo: editable.weaverChallanNo || ocrResult.weaverChallanNo,
-      weaverMarka: editable.weaverMarka || ocrResult.weaverMarka,
-      chDate: editable.chDate || ocrResult.chDate,
-      qualityName: editable.qualityName || ocrResult.qualityName,
-      takaCount: editable.takaCount ? Number(editable.takaCount) : ocrResult.takaCount,
-      totalMeter: editable.totalMeter ? Number(editable.totalMeter) : ocrResult.totalMeter,
-    });
-  };
-
-  const setEdit = (k: keyof EditableResult, v: string) =>
-    setEditable((p) => (p ? { ...p, [k]: v } : p));
-
   const confidenceColor =
     ocrResult?.confidence === "high"
       ? "bg-green-100 text-green-700"
@@ -178,7 +154,7 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
   const isLoading = uploading || extracting;
 
   return (
-    <Card className="border-primary/30 bg-primary/5 mb-4 shadow-lg overflow-hidden flex flex-col max-h-[600px]">
+    <Card className="border-primary/20 bg-muted/30 mb-6 shadow-md overflow-hidden flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
@@ -253,7 +229,7 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
         )}
 
         {/* Preview + Result */}
-        {!isLoading && ocrResult && editable && (
+        {!isLoading && ocrResult && (
           <div className="space-y-4">
             {/* Confidence badge */}
             <div className="flex items-center gap-2">
@@ -269,86 +245,24 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
               )}
             </div>
 
-            {/* Preview thumbnail */}
+            {/* Preview Document */}
             {previewUrl && (
-              <div className="relative">
-                <img
-                  src={previewUrl}
-                  alt="Challan preview"
-                  className="max-h-36 rounded-lg border border-border object-contain"
-                />
+              <div className="relative w-full rounded-lg border border-border overflow-hidden bg-muted/30">
+                {mimeType.startsWith("image/") ? (
+                  <img
+                    src={previewUrl}
+                    alt="Challan preview"
+                    className="w-full max-h-[400px] object-contain"
+                  />
+                ) : mimeType === "application/pdf" ? (
+                  <iframe
+                    src={`${previewUrl}#toolbar=0`}
+                    className="w-full h-[400px] border-none"
+                    title="PDF Preview"
+                  />
+                ) : null}
               </div>
             )}
-
-            {/* Editable extracted fields */}
-            <div className="bg-background rounded-lg border border-border p-3">
-              <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                Extracted Data — Review Before Confirming
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Party Name</Label>
-                  <Input className="h-8 text-sm" value={editable.partyName} onChange={(e) => setEdit("partyName", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Challan No</Label>
-                  <Input className="h-8 text-sm" value={editable.challanNo} onChange={(e) => setEdit("challanNo", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Date</Label>
-                  <Input className="h-8 text-sm" value={editable.date} onChange={(e) => setEdit("date", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Quality Name</Label>
-                  <Input className="h-8 text-sm" value={editable.qualityName} onChange={(e) => setEdit("qualityName", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Weaver Name</Label>
-                  <Input className="h-8 text-sm" value={editable.weaverName} onChange={(e) => setEdit("weaverName", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Weaver Challan No</Label>
-                  <Input className="h-8 text-sm" value={editable.weaverChallanNo} onChange={(e) => setEdit("weaverChallanNo", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Weaver Marka</Label>
-                  <Input className="h-8 text-sm font-mono" value={editable.weaverMarka} onChange={(e) => setEdit("weaverMarka", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">CH Date</Label>
-                  <Input className="h-8 text-sm" value={editable.chDate} onChange={(e) => setEdit("chDate", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Total Taka</Label>
-                  <Input className="h-8 text-sm" type="number" value={editable.takaCount} onChange={(e) => setEdit("takaCount", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Total Meter</Label>
-                  <Input className="h-8 text-sm" type="number" value={editable.totalMeter} onChange={(e) => setEdit("totalMeter", e.target.value)} />
-                </div>
-              </div>
-
-              {/* Taka rows preview */}
-              {ocrResult.takaRows && ocrResult.takaRows.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">
-                    {ocrResult.takaRows.length} taka rows detected
-                  </p>
-                  <div className="max-h-28 overflow-y-auto bg-muted/40 rounded p-2 text-xs font-mono">
-                    {ocrResult.takaRows.slice(0, 10).map((r, i) => (
-                      <div key={i} className="flex gap-4">
-                        <span className="w-16">{r.takaNo}</span>
-                        <span>{r.meter}m</span>
-                        {r.weight && <span>{r.weight}kg</span>}
-                      </div>
-                    ))}
-                    {ocrResult.takaRows.length > 10 && (
-                      <p className="text-muted-foreground mt-1">...+{ocrResult.takaRows.length - 10} more</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
 
             <div className="flex gap-2">
               <Button
@@ -362,17 +276,10 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => { setOcrResult(null); setEditable(null); setPreviewUrl(null); }}
+                onClick={() => { setOcrResult(null); setPreviewUrl(null); }}
                 className="cursor-pointer gap-1"
               >
                 <Upload size={13} /> New File
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleConfirm}
-                className="cursor-pointer gap-1 ml-auto"
-              >
-                <CheckCircle2 size={13} /> Use This Data
               </Button>
             </div>
           </div>
