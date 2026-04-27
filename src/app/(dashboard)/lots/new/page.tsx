@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -45,43 +45,56 @@ export default function NewLotPage() {
     queryKey: ["accounts"],
     queryFn: () => api.get<any[]>("/accounts"),
   });
-  const accounts =
-    (accountsData as any)?.data ||
-    (Array.isArray(accountsData) ? accountsData : []);
+  const accounts = useMemo(() => 
+    (accountsData as any)?.data || (Array.isArray(accountsData) ? accountsData : []),
+    [accountsData]
+  );
 
   const { data: qualitiesData } = useQuery({
     queryKey: ["qualities"],
     queryFn: () => api.get<any[]>("/qualities"),
   });
-  const qualities =
-    (qualitiesData as any)?.data ||
-    (Array.isArray(qualitiesData) ? qualitiesData : []);
+  const qualities = useMemo(() => 
+    (qualitiesData as any)?.data || (Array.isArray(qualitiesData) ? qualitiesData : []),
+    [qualitiesData]
+  );
 
   const { data: weaversData } = useQuery({
     queryKey: ["weavers"],
     queryFn: () => api.get<any[]>("/weavers"),
   });
-  const weavers =
-    (weaversData as any)?.data ||
-    (Array.isArray(weaversData) ? weaversData : []);
+  const weavers = useMemo(() => 
+    (weaversData as any)?.data || (Array.isArray(weaversData) ? weaversData : []),
+    [weaversData]
+  );
+
+  const mills = useMemo(() => 
+    accounts.filter((a: any) => a.roleType === "Mill" && a.isActive),
+    [accounts]
+  );
+  
+  const masterAccounts = useMemo(() => 
+    accounts.filter((a: any) => ["Master", "Customer", "Supplier"].includes(a.roleType) && a.isActive),
+    [accounts]
+  );
 
   const { data: challanResponse } = useQuery({
     queryKey: ["challan", prefilledChallanId],
     queryFn: () =>
       prefilledChallanId
-        ? api.get<any>(`/challans/${prefilledChallanId}`)
+        ? api.get<any>(`/challans/${prefilledChallanId}`).catch(() => null)
         : Promise.resolve(null),
     enabled: !!prefilledChallanId,
   });
 
   const challan = challanResponse?.data || challanResponse;
 
-  // Fetch associated order if available
+  // Fetch associated order if available (Handle missing orders gracefully)
   const { data: orderResponse } = useQuery({
     queryKey: ["order", challan?.orderId],
     queryFn: () =>
       challan?.orderId
-        ? api.get<any>(`/orders/${challan.orderId}`)
+        ? api.get<any>(`/orders/${challan.orderId}`).catch(() => null)
         : Promise.resolve(null),
     enabled: !!challan?.orderId,
   });
@@ -122,10 +135,11 @@ export default function NewLotPage() {
   });
 
   const [takaDetails, setTakaDetails] = useState<any[]>([]);
+  const hasInitialized = useRef(false);
 
   // Auto-fill from challan, order, and ALL masters
   useEffect(() => {
-    if (challan) {
+    if (challan && !hasInitialized.current) {
       // Find matching account (Firm)
       const firmAccount = accounts.find(
         (a: any) =>
@@ -197,24 +211,32 @@ export default function NewLotPage() {
         remark: challan.remark || order?.remark || "",
       }));
 
-      if (challan.takaDetails && Array.isArray(challan.takaDetails)) {
+      const availableTakaDetails = 
+        (challan.takaDetails && challan.takaDetails.length > 0) ? challan.takaDetails :
+        (order?.takaDetails && order?.takaDetails.length > 0) ? order.takaDetails :
+        null;
+
+      if (availableTakaDetails && Array.isArray(availableTakaDetails)) {
         setTakaDetails(
-          challan.takaDetails.map((t: any) => ({
-            tn: t.takaNo || t.tn,
+          availableTakaDetails.map((t: any) => ({
+            tn: t.takaNo || t.tn || t.taka_no,
             meter: Number(t.meter || 0),
             balanceMtr: Number(t.meter || 0),
           })),
         );
-      } else if (challan.taka || challan.totalTaka) {
-        const count = Number(challan.taka || challan.totalTaka || 0);
+      } else if (challan.taka || challan.totalTaka || order?.totalTaka) {
+        const count = Number(
+          challan.taka || challan.totalTaka || order?.totalTaka || 0,
+        );
         setTakaDetails(
-          Array.from({ length: count }).map((_, i) => ({
-            tn: i + 1,
+          Array.from({ length: count }).map(() => ({
+            tn: "",
             meter: 0,
             balanceMtr: 0,
           })),
         );
       }
+      hasInitialized.current = true;
     }
   }, [challan, order, accounts, qualities, weavers]);
 
@@ -229,9 +251,20 @@ export default function NewLotPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const p = masterAccounts.find(x => x.accountName === form.party || x.name === form.party);
+      const f = mills.find(x => x.accountName === form.firm || x.name === form.firm);
+
       await api.post("/lots", {
         ...form,
         challanId: prefilledChallanId,
+        orderId: challan?.orderId || order?._id,
+        firmId: f?._id || order?.firmId,
+        firmName: form.firm,
+        partyId: p?._id || order?.partyId,
+        partyName: form.party,
+        totalTaka: Number(form.taka),
+        totalMeter: Number(form.meter),
+        balanceMeter: Number(form.meter),
         takaDetails,
         status: "InStorage",
       });

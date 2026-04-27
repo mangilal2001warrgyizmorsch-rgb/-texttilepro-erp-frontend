@@ -29,6 +29,8 @@ import {
   Loader2,
   User,
   Scissors,
+  Camera,
+  QrCode,
 } from "lucide-react";
 import OcrChallanReader from "./OcrChallanReader";
 import { cn } from "@/lib/utils";
@@ -165,6 +167,7 @@ export function BatchOrderEntry({ onSuccess, initialOrder }: BatchOrderEntryProp
   const [current, setCurrent] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showOcr, setShowOcr] = useState(false);
+  const [ocrAutoCamera, setOcrAutoCamera] = useState(false);
 
   const mills = (accounts ?? []).filter((a) => a.roleType === "Mill" && a.isActive);
   const masterAccounts = (accounts ?? []).filter((a) => ["Master", "Customer", "Supplier"].includes(a.roleType) && a.isActive);
@@ -183,27 +186,33 @@ export function BatchOrderEntry({ onSuccess, initialOrder }: BatchOrderEntryProp
 
   const currentForm = orders[current] || emptyOrder();
 
+  // Track previous IDs to only auto-fill on change
+  const [lastPartyId, setLastPartyId] = useState<string | null>(null);
+  const [lastWeaverId, setLastWeaverId] = useState<string | null>(null);
+
   // Auto-fetch Marka based on Party selection (from Account Master)
   useEffect(() => {
-    if (currentForm.partyId && masterAccounts) {
+    if (currentForm.partyId && currentForm.partyId !== lastPartyId && masterAccounts) {
       const p = masterAccounts.find(x => x._id === currentForm.partyId);
       const targetMarka = p?.clientCode || p?.marka || "";
-      if (targetMarka !== currentForm.marka) {
+      if (targetMarka) {
         updateOrderObject({ marka: targetMarka });
       }
+      setLastPartyId(currentForm.partyId);
     }
-  }, [currentForm.partyId, masterAccounts]);
+  }, [currentForm.partyId, masterAccounts, lastPartyId]);
 
   // Auto-fetch Weaver Marka based on Weaver selection (from Weaver Master)
   useEffect(() => {
-    if (currentForm.weaverId && weavers) {
+    if (currentForm.weaverId && currentForm.weaverId !== lastWeaverId && weavers) {
       const w = weavers.find(x => x._id === currentForm.weaverId);
       const targetMarka = w?.weaverCode || w?.marka || w?.weaverMarka || "";
-      if (targetMarka !== currentForm.weaverMarka) {
+      if (targetMarka) {
         updateOrderObject({ weaverMarka: targetMarka });
       }
+      setLastWeaverId(currentForm.weaverId);
     }
-  }, [currentForm.weaverId, weavers]);
+  }, [currentForm.weaverId, weavers, lastWeaverId]);
 
   const updateTaka = (takaIdx: number, field: keyof TakaRow, value: string) => {
     setOrders((prev) =>
@@ -318,18 +327,20 @@ export function BatchOrderEntry({ onSuccess, initialOrder }: BatchOrderEntryProp
         setCurrent(0);
       } else {
         const result = challans[0];
+        const f = mills.find(m => m.accountName?.toLowerCase() === result.firmName?.toLowerCase() || m.accountName?.toLowerCase() === result.firm?.toLowerCase() || m.accountName?.toLowerCase() === result.partyName?.toLowerCase());
         const qId = qualities?.find(q => q.qualityName?.toLowerCase() === result.qualityName?.toLowerCase() || q.qualityName?.toLowerCase() === result.quality?.toLowerCase())?._id || "";
         const wId = weavers?.find(w => w.weaverName?.toLowerCase() === result.weaverName?.toLowerCase() || w.weaverName?.toLowerCase() === result.weaver?.toLowerCase())?._id || "";
         
         updateOrderObject({
           orderDate: result.date || result.orderDate || orders[current].orderDate,
-          firmId: result.firmId || orders[current].firmId,
+          firmId: f?._id || result.firmId || orders[current].firmId,
+          firmName: f?.accountName || result.firmName || result.firm || result.partyName || orders[current].firmName,
           partyId: result.partyId || orders[current].partyId,
           partyName: result.partyName || orders[current].partyName,
           partyChNo: result.partyChNo || result.challanNo || result.challan_no || orders[current].partyChNo,
           marka: result.marka || result.mka || orders[current].marka,
           qualityId: qId || result.qualityId || orders[current].qualityId,
-          qualityName: result.qualityName || result.quality || orders[current].qualityName,
+          qualityName: f?.accountName === (result.qualityName || result.quality) ? "" : (result.qualityName || result.quality || orders[current].qualityName),
           weaverId: wId || result.weaverId || orders[current].weaverId,
           weaverName: result.weaverName || result.weaver || orders[current].weaverName,
           weaverChNo: result.weaverChNo || result.weaver_challan_no || orders[current].weaverChNo,
@@ -431,7 +442,10 @@ export function BatchOrderEntry({ onSuccess, initialOrder }: BatchOrderEntryProp
       </div>
 
       {!initialOrder && showOcr && (
-        <OcrChallanReader onFill={handleOcrFill} onClose={() => setShowOcr(false)} />
+        <OcrChallanReader 
+          onFill={(res) => { handleOcrFill(res); }} 
+          onClose={() => setShowOcr(false)} 
+        />
       )}
 
       {/* Main Container Grid */}
@@ -465,7 +479,7 @@ export function BatchOrderEntry({ onSuccess, initialOrder }: BatchOrderEntryProp
             <CardContent className="p-6 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2"><Label className="text-xs font-bold uppercase text-muted-foreground">Date *</Label><Input type="date" value={form.orderDate} onChange={(e) => updateField("orderDate", e.target.value)} /></div>
               <div className="space-y-2"><Label className="text-xs font-bold uppercase text-muted-foreground">Firm Name (Mill) *</Label>
-                <Select value={form.firmId} onValueChange={(v) => updateField("firmId", v)}>
+                <Select value={form.firmId} onValueChange={(v) => { const m = mills.find(x => x._id === v); updateOrderObject({ firmId: v, firmName: m?.accountName || "" }); }}>
                   <SelectTrigger><SelectValue placeholder="Select mill..." /></SelectTrigger>
                   <SelectContent>{mills.map((m) => <SelectItem key={m._id} value={m._id}>{m.accountName}</SelectItem>)}</SelectContent>
                 </Select>

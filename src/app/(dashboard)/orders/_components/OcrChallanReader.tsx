@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {  useMutation  } from "@/lib/convex-mock";
 import { api } from "@/lib/convex-mock";
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,10 @@ type EditableResult = {
 type Props = {
   onFill: (data: any) => void;
   onClose: () => void;
+  autoCamera?: boolean;
 };
 
-export default function OcrChallanReader({ onFill, onClose }: Props) {
+export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props) {
   const generateUploadUrl = useMutation(api.orders.update); // Just using a valid api path to make it not crash, the actual OCR process is handled below.
   const extractChallan = useMutation(api.ocr.extract);
 
@@ -68,6 +69,13 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+
+  // Auto-trigger camera if requested
+  useEffect(() => {
+    if (autoCamera && cameraRef.current) {
+      cameraRef.current.click();
+    }
+  }, [autoCamera]);
 
   const uploadFile = async (file: File) => {
     setUploading(true);
@@ -218,19 +226,48 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
         </>
         )}
 
+        {/* Preview Document (Show as soon as we have a URL) */}
+        {previewUrl && (
+          <div className="relative w-full rounded-lg border border-border overflow-hidden bg-muted/30">
+            {mimeType.startsWith("image/") ? (
+              <img
+                src={previewUrl}
+                alt="Challan preview"
+                className="w-full max-h-[400px] object-contain"
+              />
+            ) : mimeType === "application/pdf" ? (
+              <div className="flex flex-col">
+                <object
+                  data={previewUrl}
+                  type="application/pdf"
+                  className="w-full h-[500px]"
+                >
+                  <embed src={previewUrl} type="application/pdf" />
+                  <div className="p-10 text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">PDF preview not supported by your browser.</p>
+                    <Button variant="outline" onClick={() => window.open(previewUrl || "", "_blank")}>
+                      Open PDF in New Tab
+                    </Button>
+                  </div>
+                </object>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         {/* Loading state */}
         {isLoading && (
-          <div className="flex flex-col items-center gap-3 py-6">
+          <div className="flex flex-col items-center gap-3 py-6 border-t border-border mt-4">
             <Spinner />
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground font-medium animate-pulse">
               {uploading ? "Uploading challan..." : "Reading challan with AI OCR..."}
             </p>
           </div>
         )}
 
-        {/* Preview + Result */}
+        {/* Result Details */}
         {!isLoading && ocrResult && (
-          <div className="space-y-4">
+          <div className="space-y-4 border-t border-border pt-4">
             {/* Confidence badge */}
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${confidenceColor}`}>
@@ -244,25 +281,6 @@ export default function OcrChallanReader({ onFill, onClose }: Props) {
                 </span>
               )}
             </div>
-
-            {/* Preview Document */}
-            {previewUrl && (
-              <div className="relative w-full rounded-lg border border-border overflow-hidden bg-muted/30">
-                {mimeType.startsWith("image/") ? (
-                  <img
-                    src={previewUrl}
-                    alt="Challan preview"
-                    className="w-full max-h-[400px] object-contain"
-                  />
-                ) : mimeType === "application/pdf" ? (
-                  <iframe
-                    src={`${previewUrl}#toolbar=0`}
-                    className="w-full h-[400px] border-none"
-                    title="PDF Preview"
-                  />
-                ) : null}
-              </div>
-            )}
 
             <div className="flex gap-2">
               <Button

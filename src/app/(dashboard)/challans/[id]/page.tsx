@@ -95,16 +95,18 @@ function ChallanDetailInner({ id }: { id: string }) {
               : ""}
           </p>
         </div>
-        {challan.status === "Active" && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleDelete}
-            className="text-destructive hover:text-destructive"
-          >
-            <Trash2 size={18} />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {challan.status === "Active" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleDelete}
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 size={18} />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Challan Details */}
@@ -159,19 +161,15 @@ function ChallanDetailInner({ id }: { id: string }) {
       </div>
 
       {/* Create Lot CTA */}
-      {canCreateLot && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5 flex items-center justify-between gap-4">
-          <div>
-            <p className="font-semibold text-foreground">
-              Ready for Lot Creation
-            </p>
-            <p className="text-sm text-muted-foreground">
-              This challan is active. Create a lot to begin processing.
-            </p>
+      {challan.status !== "LotCreated" && (
+        <div className="bg-amber-950/20 border border-amber-500/30 rounded-xl p-6 flex items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-amber-500">Ready for Lot Creation</h3>
+            <p className="text-sm text-muted-foreground">This challan is active. Create a lot to begin processing.</p>
           </div>
-          <Link href={`/lots/new?challanId=${challan._id}`}>
-            <Button className="gap-2 shrink-0">
-              <Layers size={16} />
+          <Link href={`/lots/new?challanId=${id}`}>
+            <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-2 px-8 shadow-lg shadow-emerald-900/20">
+              <Layers size={20} />
               Create Lot
             </Button>
           </Link>
