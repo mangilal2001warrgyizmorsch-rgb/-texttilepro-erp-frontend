@@ -19,6 +19,7 @@ import {
   X,
   Eye,
   RefreshCw,
+  Save,
 } from "lucide-react";
 
 type OcrResult = {
@@ -54,21 +55,27 @@ type Props = {
   onFill: (data: any) => void;
   onClose: () => void;
   autoCamera?: boolean;
+  autoSave?: boolean;
+  onAutoSaveSuccess?: (orderIds: string[]) => void;
 };
 
-export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props) {
-  const generateUploadUrl = useMutation(api.orders.update); // Just using a valid api path to make it not crash, the actual OCR process is handled below.
+export default function OcrChallanReader({ onFill, onClose, autoCamera, autoSave, onAutoSaveSuccess }: Props) {
+  const generateUploadUrl = useMutation(api.orders.update);
   const extractChallan = useMutation(api.ocr.extract);
+  const createBatch = useMutation(api.orders.createBatch);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
   const [lastFile, setLastFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState("image/jpeg");
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+  const [enableAutoSave, setEnableAutoSave] = useState(autoSave ?? false);
+  const [savedOrderIds, setSavedOrderIds] = useState<string[]>([]);
 
   // Auto-trigger camera if requested
   useEffect(() => {
@@ -81,6 +88,7 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props)
     setUploading(true);
     setOcrResult(null);
     setLastFile(file);
+    setSavedOrderIds([]);
     try {
       // Show preview for both images and PDFs
       setPreviewUrl(URL.createObjectURL(file));
@@ -122,24 +130,106 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props)
       const result = data.challans?.[0] || data;
       setOcrResult(result);
       toast.success("Data extracted successfully!");
-      // Automatically feed into the parent form
-      onFill({
-        ...result,
-        partyName: result.partyName ?? result.firm ?? result.party ?? "",
-        date: result.date ?? result.challan_date ?? result.ch_date ?? "",
-        challanNo: result.challanNo ?? result.challan_no ?? "",
-        weaverName: result.weaverName ?? result.weaver ?? "",
-        weaverChallanNo: result.weaverChallanNo ?? result.weaver_challan_no ?? "",
-        weaverMarka: result.weaverMarka ?? result.weaver_marka ?? "",
-        chDate: result.chDate ?? result.challan_date ?? result.ch_date ?? "",
-        qualityName: result.qualityName ?? result.quality ?? "",
-        takaCount: result.takaCount ?? result.taka ?? "",
-        totalMeter: result.totalMeter ?? result.meter ?? "",
-      });
+      
+      // If auto-save is enabled, automatically create orders
+      if (enableAutoSave) {
+        setTimeout(() => handleAutoSave(data), 500); // Small delay for UX
+      } else if (data.challans && Array.isArray(data.challans) && data.challans.length > 1) {
+        // If it's a batch (multiple challans), pass the full data object to the parent
+        // so the form can create multiple pages/entries.
+        onFill(data);
+      } else {
+        // For single challan, pass the flattened result with fallbacks
+        onFill({
+          ...result,
+          partyName: result.partyName ?? result.firm ?? result.party ?? "",
+          date: result.date ?? result.challan_date ?? result.ch_date ?? "",
+          challanNo: result.challanNo ?? result.challan_no ?? "",
+          weaverName: result.weaverName ?? result.weaver ?? "",
+          weaverChallanNo: result.weaverChallanNo ?? result.weaver_challan_no ?? "",
+          weaverMarka: result.weaverMarka ?? result.weaver_marka ?? "",
+          chDate: result.chDate ?? result.challan_date ?? result.ch_date ?? "",
+          qualityName: result.qualityName ?? result.quality ?? "",
+          takaCount: result.takaCount ?? result.taka ?? "",
+          totalMeter: result.totalMeter ?? result.meter ?? "",
+        });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "OCR failed");
     } finally {
       setExtracting(false);
+    }
+  };
+
+  const handleAutoSave = async (ocrData: any) => {
+    setAutoSaving(true);
+    try {
+      const challans = Array.isArray(ocrData.challans) ? ocrData.challans : [ocrData];
+      
+      // First, populate the form with extracted data - pass the full ocrData object
+      toast.info("📋 Auto-filling form fields with extracted data...");
+      
+      // Call onFill with the same data structure as the non-auto-save flow
+      onFill(ocrData);
+      
+      // Transform OCR data to Order format
+      const todayDate = new Date().toISOString().split("T")[0];
+      const payload = challans.map((c: any) => ({
+        orderDate: todayDate,
+        firmId: c.firmId || "",
+        firmName: c.firmName || c.firm || c.delivery_at || "",
+        partyId: c.partyId || "",
+        partyName: c.partyName || c.party || "",
+        partyChNo: c.challanNo || c.challan_no || c.ch_no || "",
+        marka: c.marka || c.mka || "",
+        weaverId: c.weaverId || "",
+        weaverName: c.weaverName || c.weaver || "",
+        weaverChNo: c.weaverChNo || c.weaver_challan_no || "",
+        weaverMarka: c.weaverMarka || c.weaver_marka || c.mka || "",
+        weaverChDate: c.chDate || c.challan_date || c.ch_date || "",
+        qualityId: c.qualityId || "",
+        qualityName: c.qualityName || c.quality || "",
+        width: Number(c.width) || 0,
+        weight: Number(c.weight) || 0,
+        length: Number(c.length) || 0,
+        chadti: Number(c.chadhti || c.chadti) || 0,
+        totalTaka: Number(c.totalTaka || c.takaCount || c.taka) || 1,
+        totalMeter: Number(c.totalMeter || c.meter) || 0,
+        jobRate: Number(c.jobRate) || 0,
+        greyRate: Number(c.greyRate) || 0,
+        shippingMode: "DirectMills",
+        lrNo: c.lrNo || c.lr_no || "",
+        lrDate: c.lrDate || c.lr_date || "",
+        transportName: c.transporterName || c.transporter || "",
+        vehicleNo: c.vehicleNo || c.vehicle_no || "",
+        driverMobile: c.driverMobile || c.driver_mobile || "",
+        gstin: c.gstin || c.gstin_no || "",
+        address: c.address || c.party_address || "",
+        takaDetails: (c.takaRows || c.table || []).map((r: any) => ({
+          takaNo: (r.takaNo || r.tn || "").toString(),
+          marka: (r.marka || r.mka || "").toString(),
+          meter: Number(r.meter) || 0,
+          weight: Number(r.weight) || 0,
+        })),
+        ocrFileId: c.ocrFileId || "",
+        ocrExtractedData: JSON.stringify(c),
+      }));
+
+      // Create batch orders in background
+      const result = await createBatch({ challans: payload });
+      const orderIds = result?.map((r: any) => r.order?._id).filter(Boolean) || [];
+      
+      setSavedOrderIds(orderIds);
+      toast.success(`✅ Successfully created ${orderIds.length} order(s)! Form fields auto-populated.`);
+      
+      if (onAutoSaveSuccess) {
+        onAutoSaveSuccess(orderIds);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to auto-save orders");
+      console.error("Auto-save error:", e);
+    } finally {
+      setAutoSaving(false);
     }
   };
 
@@ -159,7 +249,7 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props)
         ? "bg-yellow-100 text-yellow-700"
         : "bg-red-100 text-red-700";
 
-  const isLoading = uploading || extracting;
+  const isLoading = uploading || extracting || autoSaving;
 
   return (
     <Card className="border-primary/20 bg-muted/30 mb-6 shadow-md overflow-hidden flex flex-col">
@@ -176,6 +266,22 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props)
         <p className="text-xs text-muted-foreground">
           Upload a challan image or PDF — AI will extract and auto-fill the order form
         </p>
+        
+        {/* Auto-save toggle */}
+        <div className="mt-3 flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
+          <input
+            type="checkbox"
+            id="auto-save-toggle"
+            checked={enableAutoSave}
+            onChange={(e) => setEnableAutoSave(e.target.checked)}
+            className="cursor-pointer"
+          />
+          <label htmlFor="auto-save-toggle" className="text-sm cursor-pointer flex items-center gap-2">
+            <Save size={14} className="text-primary" />
+            <span className="font-medium">Auto-save orders after extraction</span>
+            <span className="text-xs text-muted-foreground">(Creates orders directly without editing)</span>
+          </label>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 overflow-y-auto flex-1 pb-6">
         {/* Upload Zone */}
@@ -260,7 +366,7 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props)
           <div className="flex flex-col items-center gap-3 py-6 border-t border-border mt-4">
             <Spinner />
             <p className="text-sm text-muted-foreground font-medium animate-pulse">
-              {uploading ? "Uploading challan..." : "Reading challan with AI OCR..."}
+              {uploading ? "Uploading challan..." : extracting ? "Reading challan with AI OCR..." : "Auto-saving orders..."}
             </p>
           </div>
         )}
@@ -268,6 +374,24 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props)
         {/* Result Details */}
         {!isLoading && ocrResult && (
           <div className="space-y-4 border-t border-border pt-4">
+        {/* Success message for auto-save */}
+            {savedOrderIds.length > 0 && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 size={20} className="text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-green-900">✅ Orders Auto-Saved & Form Populated!</p>
+                    <p className="text-sm text-green-800 mt-1">
+                      Successfully created {savedOrderIds.length} order(s) with ID: {savedOrderIds.join(", ")}
+                    </p>
+                    <p className="text-xs text-green-700 mt-2 italic">
+                      Form fields have been automatically filled with extracted data. You can now review and submit to proceed to challan creation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Confidence badge */}
             <div className="flex items-center gap-2">
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${confidenceColor}`}>
@@ -294,7 +418,7 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera }: Props)
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => { setOcrResult(null); setPreviewUrl(null); }}
+                onClick={() => { setOcrResult(null); setPreviewUrl(null); setSavedOrderIds([]); }}
                 className="cursor-pointer gap-1"
               >
                 <Upload size={13} /> New File

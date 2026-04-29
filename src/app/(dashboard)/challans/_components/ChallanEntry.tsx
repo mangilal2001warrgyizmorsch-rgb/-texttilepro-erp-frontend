@@ -101,16 +101,20 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
     date: today,
     challan_date: today,
     firm: "",
+    firmId: "",
     party: "",
+    partyId: "",
     gstin_no: "",
     party_address: "",
     quality: "",
+    qualityId: "",
     hsn_code: "",
     item: "",
     taka: "",
     meter: "",
     dyed_print: "",
     weaver: "",
+    weaverId: "",
     fas_rate: "",
     amount: "",
     weight: "",
@@ -121,6 +125,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
     lr_no: "",
     lr_date: "",
     transpoter: "",
+    transporterId: "",
     remark: "",
   });
 
@@ -132,16 +137,20 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
         date: (initialData.date || today).split("T")[0],
         challan_date: (initialData.challan_date || initialData.date || today).split("T")[0],
         firm: initialData.firm || "",
+        firmId: initialData.firmId || "",
         party: initialData.party || "",
+        partyId: initialData.partyId || "",
         gstin_no: initialData.gstin_no || "",
         party_address: initialData.party_address || "",
         quality: initialData.quality || "",
+        qualityId: initialData.qualityId || "",
         hsn_code: initialData.hsn_code || "",
         item: initialData.item || "",
         taka: initialData.taka || "",
         meter: initialData.meter || "",
         dyed_print: initialData.dyed_print || "",
         weaver: initialData.weaver || "",
+        weaverId: initialData.weaverId || "",
         fas_rate: initialData.fas_rate || "",
         amount: initialData.amount || "",
         weight: initialData.weight || "",
@@ -152,6 +161,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
         lr_no: initialData.lr_no || "",
         lr_date: initialData.lr_date ? initialData.lr_date.split("T")[0] : "",
         transpoter: initialData.transpoter || "",
+        transporterId: initialData.transporterId || "",
         remark: initialData.remark || "",
       });
       hasInitialized.current = editId;
@@ -166,26 +176,26 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
       setForm((prev) => ({
         ...prev,
         firm: selectedOrder.firmName || "",
-        party: selectedOrder.masterName || selectedOrder.partyName || "",
+        firmId: selectedOrder.firmId || "",
+        party: selectedOrder.partyName || "",
+        partyId: selectedOrder.partyId || "",
         challan_no: selectedOrder.partyChNo || selectedOrder.challanNo || "",
         gstin_no: selectedOrder.gstin || "",
         party_address: selectedOrder.address || "",
         quality: selectedOrder.qualityName || "",
+        qualityId: selectedOrder.qualityId || "",
         hsn_code: selectedOrder.hsn || "",
         taka: selectedOrder.totalTaka?.toString() || "",
         meter: selectedOrder.totalMeter?.toString() || "",
         weaver: selectedOrder.weaverName || "",
+        weaverId: selectedOrder.weaverId || "",
         weight: selectedOrder.weight?.toString() || "0",
         width: selectedOrder.width?.toString() || "0",
-        chadhti: (
-          selectedOrder.chadhti ||
-          selectedOrder.chadti ||
-          0
-        ).toString(),
+        chadhti: (selectedOrder.chadhti ?? selectedOrder.chadti ?? 0).toString(),
         lr_no: selectedOrder.lrNo || "",
         lr_date: selectedOrder.lrDate || "",
-        transpoter:
-          selectedOrder.transporterName || selectedOrder.transportName || "",
+        transpoter: selectedOrder.transporterName || "",
+        transporterId: selectedOrder.transporterId || "",
       }));
       hasInitialized.current = selectedOrderId;
     }
@@ -313,19 +323,31 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                 </div>
                 <div className="space-y-1.5 md:col-span-3">
                   <Label className="text-xs">Firm <span className="text-red-500">*</span></Label>
-                  <Select value={form.firm} onValueChange={(v) => updateField("firm", v)}>
+                  <Select 
+                    value={form.firmId} 
+                    onValueChange={(v) => {
+                      const m = mills.find(x => x._id === v);
+                      setForm(prev => ({ ...prev, firmId: v, firm: m?.accountName || "" }));
+                    }}
+                  >
                     <SelectTrigger className="h-9"><SelectValue placeholder="Select Firm" /></SelectTrigger>
                     <SelectContent>
-                      {mills.map((m) => (<SelectItem key={m._id} value={m.accountName}>{m.accountName}</SelectItem>))}
+                      {mills.map((m) => (<SelectItem key={m._id} value={m._id}>{m.accountName}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5 md:col-span-3">
                   <Label className="text-xs">Party <span className="text-red-500">*</span></Label>
-                  <Select value={form.party} onValueChange={(v) => updateField("party", v)}>
+                  <Select 
+                    value={form.partyId} 
+                    onValueChange={(v) => {
+                      const p = masterAccounts.find(x => x._id === v);
+                      setForm(prev => ({ ...prev, partyId: v, party: p?.accountName || "" }));
+                    }}
+                  >
                     <SelectTrigger className="h-9"><SelectValue placeholder="Select Party" /></SelectTrigger>
                     <SelectContent>
-                      {masterAccounts.map((p) => (<SelectItem key={p._id} value={p.accountName}>{p.accountName}</SelectItem>))}
+                      {masterAccounts.map((p) => (<SelectItem key={p._id} value={p._id}>{p.accountName}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -348,10 +370,16 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <div className="space-y-1.5 md:col-span-4">
                   <Label className="text-xs">Quality <span className="text-red-500">*</span></Label>
-                  <Select value={form.quality} onValueChange={(v) => updateField("quality", v)}>
+                  <Select 
+                    value={form.qualityId} 
+                    onValueChange={(v) => {
+                      const q = qualities?.find(x => x._id === v);
+                      setForm(prev => ({ ...prev, qualityId: v, quality: q?.qualityName || "" }));
+                    }}
+                  >
                     <SelectTrigger className="h-9"><SelectValue placeholder="Select Quality" /></SelectTrigger>
                     <SelectContent>
-                      {qualities?.map((q: any) => (<SelectItem key={q._id} value={q.qualityName}>{q.qualityName}</SelectItem>))}
+                      {qualities?.map((q: any) => (<SelectItem key={q._id} value={q._id}>{q.qualityName}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -384,10 +412,16 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                 </div>
                 <div className="space-y-1.5 md:col-span-3">
                   <Label className="text-xs">Weaver</Label>
-                  <Select value={form.weaver} onValueChange={(v) => updateField("weaver", v)}>
+                  <Select 
+                    value={form.weaverId} 
+                    onValueChange={(v) => {
+                      const w = weavers?.find(x => x._id === v);
+                      setForm(prev => ({ ...prev, weaverId: v, weaver: w?.weaverName || "" }));
+                    }}
+                  >
                     <SelectTrigger className="h-9"><SelectValue placeholder="Select Weaver" /></SelectTrigger>
                     <SelectContent>
-                      {weavers?.map((w: any) => (<SelectItem key={w._id} value={w.weaverName}>{w.weaverName}</SelectItem>))}
+                      {weavers?.map((w: any) => (<SelectItem key={w._id} value={w._id}>{w.weaverName}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -420,10 +454,16 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                 <div className="space-y-1.5"><Label className="text-xs">LR Date</Label><Input type="date" className="h-9" value={form.lr_date} onChange={(e) => updateField("lr_date", e.target.value)} /></div>
                 <div className="space-y-1.5 md:col-span-2">
                   <Label className="text-xs">Transporter</Label>
-                  <Select value={form.transpoter} onValueChange={(v) => updateField("transpoter", v)}>
+                  <Select 
+                    value={form.transporterId} 
+                    onValueChange={(v) => {
+                      const t = transporters.find(x => x._id === v);
+                      setForm(prev => ({ ...prev, transporterId: v, transpoter: t?.accountName || "" }));
+                    }}
+                  >
                     <SelectTrigger className="h-9"><SelectValue placeholder="Select Transporter" /></SelectTrigger>
                     <SelectContent>
-                      {transporters.map((t: any) => (<SelectItem key={t._id} value={t.accountName}>{t.accountName}</SelectItem>))}
+                      {transporters.map((t: any) => (<SelectItem key={t._id} value={t._id}>{t.accountName}</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
