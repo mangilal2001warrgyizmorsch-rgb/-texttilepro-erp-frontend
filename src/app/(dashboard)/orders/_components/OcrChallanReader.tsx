@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Save,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type OcrResult = {
   partyName?: string;
@@ -57,9 +58,10 @@ type Props = {
   autoCamera?: boolean;
   autoSave?: boolean;
   onAutoSaveSuccess?: (orderIds: string[]) => void;
+  variant?: "default" | "split";
 };
 
-export default function OcrChallanReader({ onFill, onClose, autoCamera, autoSave, onAutoSaveSuccess }: Props) {
+export default function OcrChallanReader({ onFill, onClose, autoCamera, autoSave, onAutoSaveSuccess, variant = "default" }: Props) {
   const generateUploadUrl = useMutation(api.orders.update);
   const extractChallan = useMutation(api.ocr.extract);
   const createBatch = useMutation(api.orders.createBatch);
@@ -257,15 +259,19 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera, autoSave
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText size={16} className="text-primary" />
-            OCR Challan Reader
+            {variant === "split" ? "Document Preview" : "OCR Challan Reader"}
           </CardTitle>
-          <Button size="icon" variant="ghost" onClick={onClose} className="cursor-pointer h-7 w-7">
-            <X size={16} />
-          </Button>
+          {variant !== "split" && (
+            <Button size="icon" variant="ghost" onClick={onClose} className="cursor-pointer h-7 w-7">
+              <X size={16} />
+            </Button>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground">
-          Upload a challan image or PDF — AI will extract and auto-fill the order form
-        </p>
+        {variant !== "split" && (
+          <p className="text-xs text-muted-foreground">
+            Upload a challan image or PDF — AI will extract and auto-fill the order form
+          </p>
+        )}
         
         {/* Auto-save toggle */}
         <div className="mt-3 flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
@@ -334,19 +340,22 @@ export default function OcrChallanReader({ onFill, onClose, autoCamera, autoSave
 
         {/* Preview Document (Show as soon as we have a URL) */}
         {previewUrl && (
-          <div className="relative w-full rounded-lg border border-border overflow-hidden bg-muted/30">
+          <div className={cn(
+            "relative w-full rounded-lg border border-border overflow-hidden bg-muted/30",
+            variant === "split" && "sticky top-4"
+          )}>
             {mimeType.startsWith("image/") ? (
               <img
                 src={previewUrl}
                 alt="Challan preview"
-                className="w-full max-h-[400px] object-contain"
+                className="w-full max-h-[80vh] object-contain"
               />
             ) : mimeType === "application/pdf" ? (
               <div className="flex flex-col">
                 <object
                   data={previewUrl}
                   type="application/pdf"
-                  className="w-full h-[500px]"
+                  className={cn("w-full", variant === "split" ? "h-[85vh]" : "h-[500px]")}
                 >
                   <embed src={previewUrl} type="application/pdf" />
                   <div className="p-10 text-center space-y-4">

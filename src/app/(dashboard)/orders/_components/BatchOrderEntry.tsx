@@ -31,6 +31,7 @@ import {
   Scissors,
   Camera,
   QrCode,
+  X,
 } from "lucide-react";
 import OcrChallanReader from "./OcrChallanReader";
 import { cn } from "@/lib/utils";
@@ -619,12 +620,20 @@ export function BatchOrderEntry({
           {!initialOrder && (
             <>
               <Button
-                variant="outline"
+                variant={showOcr ? "destructive" : "outline"}
                 size="sm"
-                onClick={() => setShowOcr(true)}
+                onClick={() => setShowOcr(!showOcr)}
                 className="cursor-pointer"
               >
-                <Scan size={14} className="mr-2" /> OCR Scan PDF
+                {showOcr ? (
+                  <>
+                    <X size={14} className="mr-2" /> Close Preview
+                  </>
+                ) : (
+                  <>
+                    <Scan size={14} className="mr-2" /> OCR Scan PDF
+                  </>
+                )}
               </Button>
               <Button
                 variant="outline"
@@ -652,17 +661,36 @@ export function BatchOrderEntry({
         </div>
       </div>
 
-      {!initialOrder && showOcr && (
-        <OcrChallanReader
-          onFill={(res) => {
-            handleOcrFill(res);
-          }}
-          onClose={() => setShowOcr(false)}
-        />
-      )}
+      <div className={cn(
+        "grid grid-cols-1 gap-6 items-start",
+        showOcr ? "lg:grid-cols-2" : "lg:grid-cols-12"
+      )}>
+        {/* Left Side: OCR Scan / PDF Preview */}
+        {!initialOrder && showOcr && (
+          <div className="lg:sticky lg:top-[80px]">
+            <OcrChallanReader
+              variant="split"
+              onFill={(res) => {
+                handleOcrFill(res);
+              }}
+              onClose={() => setShowOcr(false)}
+            />
+          </div>
+        )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-8 space-y-6">
+        {/* Right Side: Form Content */}
+        <div className={cn(
+          "space-y-6",
+          showOcr ? "lg:col-span-1" : "lg:col-span-12"
+        )}>
+          <div className={cn(
+            "grid grid-cols-1 gap-6 items-start",
+            showOcr ? "grid-cols-1" : "lg:grid-cols-12"
+          )}>
+            <div className={cn(
+              "space-y-6",
+              showOcr ? "col-span-1" : "lg:col-span-8"
+            )}>
           {!initialOrder && (
             <Card className="shadow-sm">
               <div className="flex items-center justify-between gap-4 p-4 border-b bg-card">
@@ -1048,10 +1076,12 @@ export function BatchOrderEntry({
               </div>
             </CardContent>
           </Card>
-        </div>
+            </div>
 
-        {/* Right Section: Taka Details */}
-        <div className="lg:col-span-4 sticky top-[80px]">
+            <div className={cn(
+              "sticky top-[80px]",
+              showOcr ? "col-span-1 relative lg:static" : "lg:col-span-4"
+            )}>
           <Card className="shadow-sm border-primary/20">
             <CardHeader className="pb-3 border-b bg-primary/5 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -1147,8 +1177,10 @@ export function BatchOrderEntry({
               </div>
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
