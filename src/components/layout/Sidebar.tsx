@@ -21,7 +21,6 @@ const navGroups: { title: string; items: NavItem[]; ownerOnly?: boolean }[] = [
     title: "Masters", items: [
       { label: "Account Master", icon: <Users size={16} />, href: "/masters/accounts" },
       { label: "Code Master", icon: <Code2 size={16} />, href: "/masters/codes" },
-      { label: "Weaver Master", icon: <Scissors size={16} />, href: "/masters/weavers" },
       { label: "Quality Master", icon: <Star size={16} />, href: "/masters/qualities" },
     ],
   },

@@ -108,7 +108,7 @@ const emptyOrder = (): OrderForm => ({
   address: "",
   vehicleNo: "",
   driverMobile: "",
-  takaDetails: [{ takaNo: "1", marka: "", meter: "", weight: "" }],
+  takaDetails: [{ takaNo: "", marka: "", meter: "", weight: "" }],
 });
 
 interface BatchOrderEntryProps {
@@ -164,11 +164,11 @@ export function BatchOrderEntry({
           vehicleNo: initialOrder.vehicleNo || "",
           driverMobile: initialOrder.driverMobile || "",
           takaDetails: initialOrder.takaDetails?.map((t: any, i: number) => ({
-            takaNo: t.takaNo || String(i + 1),
+            takaNo: t.takaNo || "",
             marka: t.marka || "",
             meter: t.meter?.toString() || "",
             weight: t.weight?.toString() || "",
-          })) || [{ takaNo: "1", marka: "", meter: "", weight: "" }],
+          })) || [{ takaNo: "", marka: "", meter: "", weight: "" }],
         },
       ];
     }
@@ -179,6 +179,7 @@ export function BatchOrderEntry({
   const [syncCommonFields, setSyncCommonFields] = useState(true);
   const [showOcr, setShowOcr] = useState(false);
   const [ocrAutoCamera, setOcrAutoCamera] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
   const mills = (accounts ?? []).filter(
     (a) => a.roleType === "Mill" && a.isActive,
@@ -336,7 +337,7 @@ export function BatchOrderEntry({
     const updates: Partial<OrderForm> = { totalTaka: val };
     if (!isNaN(n) && n > 0 && n <= 500) {
       updates.takaDetails = Array.from({ length: n }, (_, i) => ({
-        takaNo: String(i + 1),
+        takaNo: String(""),
         marka: "",
         meter: "",
         weight: "",
@@ -358,6 +359,8 @@ export function BatchOrderEntry({
     if (confirm("Reset all entry data?")) {
       setOrders([emptyOrder()]);
       setCurrent(0);
+      setShowOcr(false);
+      setResetKey((prev) => prev + 1);
     }
   };
 
@@ -506,12 +509,12 @@ export function BatchOrderEntry({
           address: result.address || result.party_address || "",
           takaDetails:
             result.takaRows || result.table
-              ? (result.takaRows || result.table).map((r: any) => ({
-                  takaNo: (r.takaNo || r.tn || "").toString(),
-                  marka: (r.marka || r.mka || "").toString(),
-                  meter: (r.meter || "").toString(),
-                  weight: (r.weight || "").toString(),
-                }))
+                ? (result.takaRows || result.table).map((r: any) => ({
+                    takaNo: (r.takaNo || r.tn || "").toString(),
+                    marka: (r.marka || r.mka || "").toString(),
+                    meter: (r.meter || "").toString(),
+                    weight: (r.weight || "").toString(),
+                  }))
               : orders[current].takaDetails,
         });
 
@@ -669,6 +672,7 @@ export function BatchOrderEntry({
         {!initialOrder && showOcr && (
           <div className="lg:sticky lg:top-[80px]">
             <OcrChallanReader
+              key={resetKey}
               variant="split"
               onFill={(res) => {
                 handleOcrFill(res);
@@ -1122,7 +1126,7 @@ export function BatchOrderEntry({
                         <td className="px-3 py-2">
                           <Input
                             className="h-7 text-xs font-mono bg-transparent border-none focus:ring-1"
-                            value={row.takaNo}
+                            value={row.takaNo || ""}
                             onChange={(e) =>
                               updateTaka(idx, "takaNo", e.target.value)
                             }
@@ -1131,7 +1135,7 @@ export function BatchOrderEntry({
                         <td className="px-3 py-2">
                           <Input
                             className="h-7 text-xs font-mono bg-transparent border-none focus:ring-1"
-                            value={row.meter}
+                            value={row.meter || ""}
                             onChange={(e) =>
                               updateTaka(idx, "meter", e.target.value)
                             }
