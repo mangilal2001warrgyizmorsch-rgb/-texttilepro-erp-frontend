@@ -56,6 +56,8 @@ type OrderForm = {
   weaverName: string;
   weaverChNo: string;
   weaverMarka: string;
+  weaverGstin: string;
+  weaverAddress: string;
   qualityId: string;
   qualityName: string;
   width: string;
@@ -70,8 +72,11 @@ type OrderForm = {
   lrNo: string;
   lrDate: string;
   transporterName: string;
-  gstin: string;
-  address: string;
+  gstin: string; // Left for backwards compatibility, use partyGstin
+  address: string; // Left for backwards compatibility, use partyAddress
+  partyGstin: string;
+  partyAddress: string;
+  brokerName: string;
   vehicleNo: string;
   driverMobile: string;
   takaDetails: TakaRow[];
@@ -90,6 +95,8 @@ const emptyOrder = (): OrderForm => ({
   weaverName: "",
   weaverChNo: "",
   weaverMarka: "",
+  weaverGstin: "",
+  weaverAddress: "",
   qualityId: "",
   qualityName: "",
   width: "",
@@ -102,10 +109,13 @@ const emptyOrder = (): OrderForm => ({
   greyRate: "",
   shippingMode: "DirectMills",
   lrNo: "",
-  lrDate: "",
+  lrDate: new Date().toISOString().split("T")[0],
   transporterName: "",
   gstin: "",
   address: "",
+  partyGstin: "",
+  partyAddress: "",
+  brokerName: "",
   vehicleNo: "",
   driverMobile: "",
   takaDetails: [{ takaNo: "", marka: "", meter: "", weight: "" }],
@@ -163,7 +173,7 @@ export function BatchOrderEntry({
           address: initialOrder.address || "",
           vehicleNo: initialOrder.vehicleNo || "",
           driverMobile: initialOrder.driverMobile || "",
-          takaDetails: initialOrder.takaDetails?.map((t: any, i: number) => ({
+          takaDetails: initialOrder.takaDetails?.map((t: any) => ({
             takaNo: t.takaNo || "",
             marka: t.marka || "",
             meter: t.meter?.toString() || "",
@@ -244,9 +254,97 @@ export function BatchOrderEntry({
 
   const currentForm = orders[current] || emptyOrder();
 
+  // FIX 1: Use index 0 (most recently added) instead of last index
+  const getLastCodeMasterId = () => {
+    if (!Array.isArray(codeMaster) || codeMaster.length === 0) return "";
+    return codeMaster[0]._id || "";
+  };
+
+  const getCodeMasterMarka = (id: string) => {
+    const cm = Array.isArray(codeMaster)
+      ? (codeMaster as any[]).find((x) => x._id === id)
+      : undefined;
+    return cm?.marka || cm?.clientCode || cm?.code || "";
+  };
+
+  const getCodeMasterDisplay = (id: string) => {
+    if (!id) return "Select code master...";
+    const cm = Array.isArray(codeMaster)
+      ? (codeMaster as any[]).find((x) => x._id === id)
+      : undefined;
+    if (!cm) return "Select code master...";
+    return cm?.masterName || cm?.accountName || "Unknown";
+  };
+
+  // Helper: resolve code master from OCR marka string
+  // Returns { cmId, defaultMarka } — always falls back to latest (index 0)
+  const resolveCodeMaster = (ocrMarkaRaw: string, ocrMasterName?: string) => {
+    const ocrMarka = (ocrMarkaRaw || "").trim().toLowerCase();
+
+    // Only attempt match if marka is meaningful (length > 3 avoids "TES" from "TEXTILES")
+    const matchingCm =
+      ocrMarka.length > 3
+        ? (codeMaster as any[])?.find(
+            (cm: any) =>
+              cm.marka?.trim().toLowerCase() === ocrMarka ||
+              cm.masterName?.trim().toLowerCase() ===
+                (ocrMasterName || "").trim().toLowerCase(),
+          )
+        : undefined;
+
+    // If no match, fall back to latest added code master (index 0)
+    const fallbackCm =
+      !matchingCm && Array.isArray(codeMaster) && codeMaster.length > 0
+        ? (codeMaster as any[])[0]
+        : undefined;
+
+    const cmId = matchingCm?._id || fallbackCm?._id || "";
+    const defaultMarka =
+      matchingCm?.marka ||
+      matchingCm?.clientCode ||
+      matchingCm?.code ||
+      fallbackCm?.marka ||
+      fallbackCm?.clientCode ||
+      fallbackCm?.code ||
+      "";
+
+    return { cmId, defaultMarka };
+  };
+
   const [lastPartyId, setLastPartyId] = useState<string | null>(null);
   const [lastWeaverId, setLastWeaverId] = useState<string | null>(null);
   const [lastCodeMasterId, setLastCodeMasterId] = useState<string | null>(null);
+  const [defaultCodeMasterSet, setDefaultCodeMasterSet] = useState(false);
+
+  // FIX 2: Use index 0 for the default code master on load
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (
+      !initialOrder &&
+      Array.isArray(codeMaster) &&
+      codeMaster.length > 0 &&
+      !defaultCodeMasterSet
+    ) {
+      const latestCm = (codeMaster as any[])[0]; // index 0 = most recently added
+      const latestCmId = latestCm._id || "";
+      const latestCmMarka =
+        latestCm?.marka || latestCm?.clientCode || latestCm?.code || "";
+      if (latestCmId && orders[0]?.codeMasterId === "") {
+        setOrders((prev) => {
+          const updated = [...prev];
+          if (updated[0]) {
+            updated[0] = {
+              ...updated[0],
+              codeMasterId: latestCmId,
+              marka: latestCmMarka,
+            };
+          }
+          return updated;
+        });
+        setDefaultCodeMasterSet(true);
+      }
+    }
+  }, [codeMaster, initialOrder]);
 
   useEffect(() => {
     if (
@@ -279,7 +377,7 @@ export function BatchOrderEntry({
       currentForm.codeMasterId !== lastCodeMasterId &&
       codeMaster
     ) {
-      const cm = codeMaster.find(
+      const cm = (codeMaster as any[]).find(
         (x: any) => x._id === currentForm.codeMasterId,
       );
       const targetMarka = cm?.marka || cm?.clientCode || cm?.code || "";
@@ -309,7 +407,7 @@ export function BatchOrderEntry({
           takaDetails: [
             ...o.takaDetails,
             {
-              takaNo: String(o.takaDetails.length + 1),
+              takaNo: "",
               marka: "",
               meter: "",
               weight: "",
@@ -364,170 +462,260 @@ export function BatchOrderEntry({
     }
   };
 
+  // ────────────────────────────────────────────────────────────────────────────
+  // FIXED FIRM — never override from scanned PDF
+  // ────────────────────────────────────────────────────────────────────────────
+  const FIXED_FIRM_NAME = "JAI MATA DI FASHIONS PVT. LTD.";
+  const FIXED_FIRM_GSTIN = "24AABCA9842L1ZG";
+
+  const getFixedFirmId = useCallback(() => {
+    const firm = mills.find(
+      (m) =>
+        m.gstin?.trim().toUpperCase() === FIXED_FIRM_GSTIN ||
+        m.accountName?.toUpperCase().includes("JAI MATA DI"),
+    );
+    return firm?._id || "";
+  }, [mills]);
+
+  // Helper: clean GST for matching
+  const cleanGST = (gst: string) =>
+    (gst || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  // Helper: match party by GSTIN against loaded master accounts
+  const matchPartyByGstin = useCallback(
+    (gstin: string) => {
+      const clean = cleanGST(gstin);
+      if (!clean || clean.length < 15) return null;
+      return masterAccounts.find(
+        (a) => cleanGST(a.gstin || "") === clean,
+      ) || null;
+    },
+    [masterAccounts],
+  );
+
+  // Helper: match weaver by GSTIN against loaded weavers
+  const matchWeaverByGstin = useCallback(
+    (gstin: string) => {
+      const clean = cleanGST(gstin);
+      if (!clean || clean.length < 15) return null;
+      return (weavers ?? []).find(
+        (w: any) => cleanGST(w.gstin || "") === clean,
+      ) || null;
+    },
+    [weavers],
+  );
+
   const handleOcrFill = useCallback(
     (data: any) => {
       const challans = Array.isArray(data) ? data : data.challans || [data];
-      if (challans.length > 1) {
-        const todayDate = new Date().toISOString().split("T")[0];
-        const mapped = challans.map((c: any) => {
-          const qId =
-            qualities?.find(
-              (q) =>
-                q.qualityName?.toLowerCase() === c.qualityName?.toLowerCase() ||
-                q.qualityName?.toLowerCase() === c.quality?.toLowerCase(),
-            )?._id || "";
-          const wId =
-            weavers?.find(
-              (w) =>
-                w.weaverName?.toLowerCase() === c.weaverName?.toLowerCase() ||
-                w.weaverName?.toLowerCase() === c.weaver?.toLowerCase(),
-            )?._id || "";
-          const cmId =
-            codeMaster?.find(
-              (cm: any) =>
-                cm.marka?.toLowerCase() === c.marka?.toLowerCase() ||
-                cm.masterName?.toLowerCase() === c.masterName?.toLowerCase(),
-            )?._id || "";
-          return {
-            ...emptyOrder(),
-            orderDate: todayDate,
-            firmId: c.firmId || "",
-            firmName: c.firmName || c.firm || "",
-            partyId: c.partyId || "",
-            partyName: c.partyName || c.party || "",
-            codeMasterId: cmId || "", 
-            partyChNo: c.partyChNo || c.challanNo || c.challan_no || "",
-            marka: c.marka || c.mka || "",
-            weaverId: wId || c.weaverId || "",
-            weaverName: c.weaverName || c.weaver || "",
-            weaverChNo: c.weaverChNo || c.weaver_challan_no || "",
-            weaverMarka: c.weaverMarka || c.weaver_marka || "",
-            qualityId: qId || c.qualityId || "",
-            qualityName: c.qualityName || c.quality || "",
-            width: (c.width || "").toString(),
-            weight: (c.weight || "").toString(),
-            length: (c.length || "").toString(),
-            chadhti: (c.chadhti || c.chadti || "").toString(),
-            totalTaka: (c.totalTaka || c.takaCount || c.taka || "").toString(),
-            totalMeter: (c.totalMeter || c.meter || "").toString(),
-            lrNo: c.lrNo || c.lr_no || "",
-            lrDate: c.lrDate || c.lr_date || "",
-            transporterName: c.transporterName || c.transporter || "",
-            gstin: c.gstin || c.gstin_no || "",
-            address: c.address || c.party_address || "",
-            takaDetails: (c.takaRows || c.table || []).map((r: any) => ({
-              takaNo: (r.takaNo || r.tn || "").toString(),
-              marka: (r.marka || r.mka || "").toString(),
-              meter: (r.meter || "").toString(),
-              weight: (r.weight || "").toString(),
-            })),
-          };
-        });
-        const missingCodeMasters = mapped.filter((o) => !o.codeMasterId);
-        setOrders(mapped);
-        setCurrent(0);
-        
-        if (missingCodeMasters.length > 0) {
-          toast.error("Code master not found! Please create code master first.", {
-            description: `Missing for ${missingCodeMasters.length} challan(s).`,
+
+      // Resolve the fixed firm ID
+      const fixedFirmId = getFixedFirmId();
+
+      // Helper to process one challan into an OrderForm
+      const processOneChallan = (c: any): Partial<OrderForm> => {
+        // ── 1. FIRM: Always fixed ────────────────────────────────────
+        const firmId = fixedFirmId;
+        const firmName = FIXED_FIRM_NAME;
+
+        // ── 2. PARTY: Match by GSTIN (priority) → backend partyId → name ─
+        const partyGstin = c.party_obj?.gstin_no || c.gstin_no || "";
+        let partyId = "";
+        let partyName = "";
+        let partyAddress = "";
+        let partyGstinValue = "";
+
+        // Priority 1: GSTIN match against frontend master data
+        const partyByGst = matchPartyByGstin(partyGstin);
+        if (partyByGst) {
+          partyId = partyByGst._id;
+          partyName = partyByGst.accountName || "";
+          partyAddress = partyByGst.address || "";
+          partyGstinValue = partyByGst.gstin || "";
+        }
+        // Priority 2: Backend already resolved partyId
+        else if (c.partyId) {
+          partyId = c.partyId;
+          partyName = c.partyName || c.party || "";
+        }
+        // Priority 3: Name-based match
+        else {
+          const nameToMatch = (c.partyName || c.party || "").trim().toLowerCase();
+          if (nameToMatch) {
+            const match = masterAccounts.find(
+              (a) => a.accountName?.trim().toLowerCase() === nameToMatch,
+            );
+            if (match) {
+              partyId = match._id;
+              partyName = match.accountName || "";
+              partyAddress = match.address || "";
+              partyGstinValue = match.gstin || "";
+            }
+          }
+        }
+
+        // Show error if party not found
+        if (!partyId && partyGstin) {
+          toast.error(`Customer not found in master database for GST: ${cleanGST(partyGstin)}`, {
+            duration: 6000,
+          });
+        } else if (!partyId && (c.party || c.partyName)) {
+          toast.error(`Customer "${c.party || c.partyName}" not found in master database`, {
             duration: 5000,
           });
-        } else {
-          toast.success("OCR data loaded!");
         }
-      } else {
-        const result = challans[0];
-        const f = mills.find(
-          (m) =>
-            m.accountName?.toLowerCase() === result.firmName?.toLowerCase() ||
-            m.accountName?.toLowerCase() === result.firm?.toLowerCase() ||
-            m.accountName?.toLowerCase() === result.partyName?.toLowerCase(),
-        );
-        const qId =
-          qualities?.find(
-            (q) =>
-              q.qualityName?.toLowerCase() ===
-                result.qualityName?.toLowerCase() ||
-              q.qualityName?.toLowerCase() === result.quality?.toLowerCase(),
-          )?._id || "";
-        const wId =
-          weavers?.find(
-            (w) =>
-              w.weaverName?.toLowerCase() ===
-                result.weaverName?.toLowerCase() ||
-              w.weaverName?.toLowerCase() === result.weaver?.toLowerCase(),
-          )?._id || "";
 
-        const cmId =
-          codeMaster?.find(
-            (cm: any) =>
-              cm.marka?.toLowerCase() === result.marka?.toLowerCase() ||
-              cm.masterName?.toLowerCase() === result.masterName?.toLowerCase(),
-          )?._id || "";
+        // ── 3. WEAVER: Match by GSTIN (priority) → backend weaverId → name ─
+        const weaverGstin = c.weaver_obj?.gstin_no || "";
+        let weaverId = "";
+        let weaverName = "";
+        let weaverGstinValue = "";
+        let weaverAddressValue = c.weaver_obj?.address || "";
+
+        // Priority 1: GSTIN match
+        const weaverByGst = matchWeaverByGstin(weaverGstin);
+        if (weaverByGst) {
+          weaverId = weaverByGst._id;
+          weaverName = weaverByGst.weaverName || weaverByGst.accountName || "";
+          weaverGstinValue = weaverByGst.gstin || weaverGstin;
+          weaverAddressValue = weaverByGst.address || weaverAddressValue;
+        }
+        // Priority 2: Backend already resolved weaverId
+        else if (c.weaverId) {
+          weaverId = c.weaverId;
+          weaverName = c.weaverName || c.weaver || "";
+        }
+        // Priority 3: Name-based match
+        else {
+          const nameToMatch = (c.weaverName || c.weaver || c.weaver_obj?.name || "").trim().toLowerCase();
+          if (nameToMatch) {
+            const match = (weavers ?? []).find(
+              (w: any) => w.weaverName?.trim().toLowerCase() === nameToMatch,
+            );
+            if (match) {
+              weaverId = match._id;
+              weaverName = match.weaverName || "";
+              weaverGstinValue = match.gstin || weaverGstin;
+              weaverAddressValue = match.address || weaverAddressValue;
+            }
+          }
+        }
+
+        // Show error if weaver not found
+        if (!weaverId && weaverGstin) {
+          toast.error(`Weaver not found in master database for GST: ${cleanGST(weaverGstin)}`, {
+            duration: 6000,
+          });
+        } else if (!weaverId && (c.weaver || c.weaverName || c.weaver_obj?.name)) {
+          toast.error(`Weaver "${c.weaver || c.weaverName || c.weaver_obj?.name}" not found in master database`, {
+            duration: 5000,
+          });
+        }
+
+        // ── 4. QUALITY: backend qualityId → local name match ──────────
+        let qualityId = c.qualityId || "";
+        let qualityName2 = c.qualityName || c.quality || "";
+        if (!qualityId) {
+          const qMatch = qualities?.find(
+            (q) =>
+              q.qualityName?.toLowerCase() === qualityName2.toLowerCase(),
+          );
+          if (qMatch) {
+            qualityId = qMatch._id;
+            qualityName2 = qMatch.qualityName;
+          }
+        }
+
+        // ── 5. CODE MASTER ────────────────────────────────────────────
+        const { cmId, defaultMarka } = resolveCodeMaster(
+          c.marka || c.mka || "",
+          c.masterName || "",
+        );
 
         const todayDate = new Date().toISOString().split("T")[0];
 
-        updateOrderObject({
+        return {
           orderDate: todayDate,
-          firmId: result.firmId || f?._id || "",
-          firmName:
-            result.firmName ||
-            f?.accountName ||
-            result.firm ||
-            result.delivery_at ||
-            result.partyName ||
-            "",
-          partyId: result.partyId || "",
-          partyName: result.partyName || result.party || result.customer || "",
-          codeMasterId: cmId || "", 
-          partyChNo:
-            result.partyChNo || result.challanNo || result.challan_no || "",
-          marka: result.marka || result.mka || "",
-          qualityId: result.qualityId || qId || "",
-          qualityName: result.qualityName || result.quality || "",
-          weaverId: result.weaverId || wId || "",
-          weaverName: result.weaverName || result.weaver || "",
-          weaverChNo: result.weaverChNo || result.weaver_challan_no || "",
-          weaverMarka: result.weaverMarka || result.weaver_marka || "",
-          totalTaka: (
-            result.totalTaka ||
-            result.takaCount ||
-            result.taka ||
-            ""
-          ).toString(),
-          totalMeter: (result.totalMeter || result.meter || "").toString(),
-          width: (result.width || "").toString(),
-          chadhti: (result.chadhti || result.chadti || "").toString(),
-          lrNo: result.lrNo || result.lr_no || "",
-          lrDate: result.lrDate || result.lr_date || "",
-          transporterName:
-            result.transporterName ||
-            result.transpoter ||
-            result.transporter ||
-            "",
-          gstin: result.gstin || result.gstin_no || "",
-          address: result.address || result.party_address || "",
+          firmId: firmId,
+          firmName: firmName,
+          partyId: partyId,
+          partyName: partyName || c.partyName || c.party || "",
+          codeMasterId: cmId,
+          partyChNo: c.partyChNo || c.challanNo || c.challan_no || "",
+          marka: defaultMarka || c.mka || "",
+          weaverId: weaverId,
+          weaverName: weaverName || c.weaverName || c.weaver || "",
+          weaverChNo: c.weaverChNo || c.weaver_challan_no || "",
+          weaverMarka: c.weaverMarka || c.weaver_marka || "",
+          weaverGstin: weaverGstinValue || c.weaverGstin || weaverGstin,
+          weaverAddress: weaverAddressValue || c.weaverAddress || "",
+          qualityId: qualityId,
+          qualityName: qualityName2,
+          width: (c.width || "").toString(),
+          weight: (c.weight || "").toString(),
+          length: (c.length || "").toString(),
+          chadhti: (c.chadhti || c.chadti || "").toString(),
+          totalTaka: (c.totalTaka || c.takaCount || c.taka || "").toString(),
+          totalMeter: (c.totalMeter || c.meter || "").toString(),
+          lrNo: c.lrNo || c.lr_no || "",
+          lrDate: c.lrDate || c.lr_date || todayDate,
+          transporterName: c.transporterName || c.transpoter || c.transporter || "",
+          gstin: partyGstinValue || c.gstin || c.gstin_no || "",
+          address: partyAddress || c.address || c.party_address || "",
+          partyGstin: partyGstinValue || c.gstin || c.gstin_no || "",
+          partyAddress: partyAddress || c.address || c.party_address || "",
+          brokerName: c.broker || c.agent || "",
+          takaDetails: (c.takaRows || c.table || []).map((r: any) => ({
+            takaNo: (r.takaNo || r.tn || "").toString(),
+            marka: (r.marka || r.mka || "").toString(),
+            meter: (r.meter || "").toString(),
+            weight: (r.weight || "").toString(),
+          })),
+        };
+      };
+
+      if (challans.length > 1) {
+        // ─── MULTI-CHALLAN BLOCK ───────────────────────────────────────────
+        const mapped = challans.map((c: any) => ({
+          ...emptyOrder(),
+          ...processOneChallan(c),
+        }));
+
+        setOrders(mapped);
+        setCurrent(0);
+
+        // Summary toast
+        const matchedParties = mapped.filter((o: any) => o.partyId).length;
+        const matchedWeavers = mapped.filter((o: any) => o.weaverId).length;
+        toast.success(
+          `✅ ${challans.length} challan(s) loaded. Party: ${matchedParties}/${challans.length}, Weaver: ${matchedWeavers}/${challans.length} matched.`,
+          { duration: 5000 },
+        );
+      } else {
+        // ─── SINGLE-CHALLAN BLOCK ──────────────────────────────────────────
+        const result = challans[0];
+        const processed = processOneChallan(result);
+
+        updateOrderObject({
+          ...processed,
           takaDetails:
-            result.takaRows || result.table
-                ? (result.takaRows || result.table).map((r: any) => ({
-                    takaNo: (r.takaNo || r.tn || "").toString(),
-                    marka: (r.marka || r.mka || "").toString(),
-                    meter: (r.meter || "").toString(),
-                    weight: (r.weight || "").toString(),
-                  }))
+            processed.takaDetails && processed.takaDetails.length > 0
+              ? processed.takaDetails
               : orders[current].takaDetails,
         });
 
-        if (!cmId && !result.codeMasterId) {
-          toast.error("Code master not found! Please create code master first.", {
-            duration: 5000,
-          });
-        } else {
-          toast.success("✅ OCR data loaded and form populated!");
-        }
+        const matchInfo: string[] = [];
+        if (processed.partyId) matchInfo.push("✓ Party matched");
+        else matchInfo.push("✗ Party not found");
+        if (processed.weaverId) matchInfo.push("✓ Weaver matched");
+        else matchInfo.push("✗ Weaver not found");
+
+        toast.success(`✅ OCR data loaded! ${matchInfo.join(" | ")}`, {
+          duration: 5000,
+        });
       }
     },
-    [orders, current, qualities, weavers, mills, syncCommonFields, codeMaster],
+    [orders, current, qualities, weavers, mills, masterAccounts, syncCommonFields, codeMaster, getFixedFirmId, matchPartyByGstin, matchWeaverByGstin],
   );
 
   const handleSubmit = async () => {
@@ -548,7 +736,7 @@ export function BatchOrderEntry({
       toast.error(`Challan ${invalidIndex + 1}: Missing ${missing.join(", ")}`, {
         description: "Please fill all required fields before submitting.",
       });
-      setCurrent(invalidIndex); 
+      setCurrent(invalidIndex);
       return;
     }
     setLoading(true);
@@ -563,9 +751,9 @@ export function BatchOrderEntry({
         chadhti: Number(o.chadhti) || 0,
         jobRate: Number(o.jobRate) || 0,
         greyRate: Number(o.greyRate) || 0,
-        takaDetails: o.takaDetails.map((t, tIdx) => ({
+        takaDetails: o.takaDetails.map((t) => ({
           ...t,
-          takaNo: t.takaNo || (tIdx + 1).toString(),
+          takaNo: t.takaNo || "",
           meter: Number(t.meter),
           weight: Number(t.weight) || 0,
         })),
@@ -851,7 +1039,7 @@ export function BatchOrderEntry({
                 <Select
                   value={form.codeMasterId}
                   onValueChange={(v) => {
-                    const cm = codeMaster?.find((x: any) => x._id === v);
+                    const cm = (codeMaster as any[])?.find((x: any) => x._id === v);
                     updateOrderObject({
                       codeMasterId: v,
                       marka: cm?.marka || cm?.clientCode || "",
@@ -872,8 +1060,7 @@ export function BatchOrderEntry({
                       codeMaster.map((cm: any) => (
                         <SelectItem key={cm._id} value={cm._id}>
                           <div className="flex flex-col py-1">
-                            <span>{cm.accountName}</span>
-                            {/* <span className="text-[10px] text-muted-foreground">Master: {cm.masterName} | Quality: {cm.quality} {cm.marka ? `| Marka: ${cm.marka}` : ""}</span> */}
+                            <span>{cm.masterName || cm.accountName}</span>
                           </div>
                         </SelectItem>
                       ))
@@ -894,16 +1081,6 @@ export function BatchOrderEntry({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase text-muted-foreground">
-                  Challan No
-                </Label>
-                <Input
-                  value={form.partyChNo}
-                  onChange={(e) => updateField("partyChNo", e.target.value)}
-                  placeholder="Enter challan no"
-                />
-              </div>
             </CardContent>
           </Card>
 
@@ -915,6 +1092,17 @@ export function BatchOrderEntry({
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Date
+                </Label>
+                <Input
+                  type="date"
+                  value={Date.now() > new Date(form.lrDate).getTime() ? form.lrDate : ""}
+                  onChange={(e) => updateField("lrDate", e.target.value)}
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">
                   Weaver Name
@@ -949,6 +1137,16 @@ export function BatchOrderEntry({
                   value={form.weaverMarka}
                   onChange={(e) => updateField("weaverMarka", e.target.value)}
                   placeholder="Enter weaver marka"
+                />
+              </div>
+                            <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Weaver Challan No
+                </Label>
+                <Input
+                  value={form.weaverChNo}
+                  onChange={(e) => updateField("weaverChNo", e.target.value)}
+                  placeholder="Enter weaver challan no"
                 />
               </div>
             </CardContent>
@@ -1159,20 +1357,15 @@ export function BatchOrderEntry({
               <div className="p-4 border-t bg-muted/5 flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-tighter">
-                    Current Sum
+                    Total Taka
                   </span>
-                  <span
-                    className={cn(
-                      "text-lg font-bold leading-none",
-                      meterMismatch ? "text-destructive" : "text-primary",
-                    )}
-                  >
-                    {sumMeters.toFixed(2)}m
+                  <span className="text-lg font-bold leading-none text-primary">
+                    {form.totalTaka || String(form.takaDetails.length)}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-[9px] font-bold uppercase text-muted-foreground tracking-tighter">
-                    Target Total
+                    Total Meter
                   </span>
                   <span className="text-lg font-bold text-muted-foreground leading-none">
                     {form.totalMeter || "0"}m

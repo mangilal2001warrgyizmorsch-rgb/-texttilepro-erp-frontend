@@ -66,7 +66,7 @@ export default function ChallanPageWrapper() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4 h-[calc(100vh-3.5rem)] flex flex-col overflow-hidden">
+    <div className="p-4 md:p-6 space-y-4 h-full flex flex-col overflow-scroll">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold">Mill Challans</h1>

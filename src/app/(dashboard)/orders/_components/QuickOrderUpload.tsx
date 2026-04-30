@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation } from "@/lib/convex-mock";
+import { useState, useRef, useEffect } from "react";
+import {  useMutation  } from "@/lib/convex-mock";
 import { api } from "@/lib/convex-mock";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,29 +16,96 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
-  Loader2,
-  Zap,
+  X,
+  Eye,
+  RefreshCw,
+  Save,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface QuickOrderUploadProps {
-  onSuccess?: (orderIds: string[]) => void;
-  onClose?: () => void;
-  onFormFill?: (data: any) => void;
-}
+type OcrResult = {
+  partyName?: string;
+  date?: string;
+  challanNo?: string;
+  weaverName?: string;
+  weaverChallanNo?: string;
+  weaverMarka?: string;
+  chDate?: string;
+  qualityName?: string;
+  takaCount?: number;
+  totalMeter?: number;
+  takaRows?: { takaNo: string; meter: number; weight?: number }[];
+  confidence: string;
+  unmatchedFields?: string[];
+};
 
-export function QuickOrderUpload({ onSuccess, onClose, onFormFill }: QuickOrderUploadProps) {
+type EditableResult = {
+  partyName: string;
+  date: string;
+  challanNo: string;
+  weaverName: string;
+  weaverChallanNo: string;
+  weaverMarka: string;
+  chDate: string;
+  qualityName: string;
+  takaCount: string;
+  totalMeter: string;
+};
+
+type Props = {
+  onFill: (data: any) => void;
+  onClose: () => void;
+  autoCamera?: boolean;
+  autoSave?: boolean;
+  onAutoSaveSuccess?: (orderIds: string[]) => void;
+  variant?: "default" | "split";
+};
+
+export default function OcrChallanReader({ onFill, onClose, autoCamera, autoSave, onAutoSaveSuccess, variant = "default" }: Props) {
+  const generateUploadUrl = useMutation(api.orders.update);
+  const extractChallan = useMutation(api.ocr.extract);
   const createBatch = useMutation(api.orders.createBatch);
 
+  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+
   const [uploading, setUploading] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [createdOrders, setCreatedOrders] = useState<string[]>([]);
+  const [extracting, setExtracting] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastFile, setLastFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [mimeType, setMimeType] = useState("image/jpeg");
+  const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
+  const [enableAutoSave, setEnableAutoSave] = useState(autoSave ?? false);
+  const [savedOrderIds, setSavedOrderIds] = useState<string[]>([]);
 
-  const handleFileUpload = async (file: File) => {
+  // Auto-trigger camera if requested
+  useEffect(() => {
+    if (autoCamera && cameraRef.current) {
+      cameraRef.current.click();
+    }
+  }, [autoCamera]);
+
+  const uploadFile = async (file: File) => {
     setUploading(true);
-    setProcessing(false);
-    setCompleted(false);
+    setOcrResult(null);
+    setLastFile(file);
+    setSavedOrderIds([]);
+    try {
+      // Show preview for both images and PDFs
+      setPreviewUrl(URL.createObjectURL(file));
+      setMimeType(file.type);
+      toast.success("File uploaded — running OCR...");
+      await runOcr(file);
+    } catch (e) {
+      toast.error("Upload failed. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
+  const runOcr = async (file: File) => {
+    setExtracting(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -45,44 +114,70 @@ export function QuickOrderUpload({ onSuccess, onClose, onFormFill }: QuickOrderU
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      // Extract OCR data
-      const ocrResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5500/api"}/ocr/extract`,
-        {
-          method: "POST",
-          body: formData,
-          headers,
-        }
-      );
+      // We use the local API endpoint now
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5500/api"}/ocr/extract`, {
+        method: "POST",
+        body: formData,
+        headers
+      });
 
-      if (!ocrResponse.ok) {
-        const err = await ocrResponse
-          .json()
-          .catch(() => ({ error: "OCR API failed" }));
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "OCR API failed" }));
         throw new Error(err.error || "OCR failed");
       }
-
-      const ocrData = await ocrResponse.json();
-      setUploading(false);
-      setProcessing(true);
-
-      // First, populate the form with extracted data - pass full ocrData
-      if (onFormFill) {
-        onFormFill(ocrData);
-        toast.info("📋 Form auto-filled with extracted data...");
+      
+      const data = await response.json();
+      
+      // Handle result (compatible with batch or single)
+      const result = data.challans?.[0] || data;
+      setOcrResult(result);
+      toast.success("Data extracted successfully!");
+      
+      // If auto-save is enabled, automatically create orders
+      if (enableAutoSave) {
+        setTimeout(() => handleAutoSave(data), 500); // Small delay for UX
+      } else if (data.challans && Array.isArray(data.challans) && data.challans.length > 1) {
+        // If it's a batch (multiple challans), pass the full data object to the parent
+        // so the form can create multiple pages/entries.
+        onFill(data);
+      } else {
+        // For single challan, pass the flattened result with fallbacks
+        onFill({
+          ...result,
+          partyName: result.partyName ?? result.firm ?? result.party ?? "",
+          date: result.date ?? result.challan_date ?? result.ch_date ?? "",
+          challanNo: result.challanNo ?? result.challan_no ?? "",
+          weaverName: result.weaverName ?? result.weaver ?? "",
+          weaverChallanNo: result.weaverChallanNo ?? result.weaver_challan_no ?? "",
+          weaverMarka: result.weaverMarka ?? result.weaver_marka ?? "",
+          chDate: result.chDate ?? result.challan_date ?? result.ch_date ?? "",
+          qualityName: result.qualityName ?? result.quality ?? "",
+          takaCount: result.takaCount ?? result.taka ?? "",
+          totalMeter: result.totalMeter ?? result.meter ?? "",
+        });
       }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "OCR failed");
+    } finally {
+      setExtracting(false);
+    }
+  };
 
-      // Transform to Order format
-      const challans = Array.isArray(ocrData.challans)
-        ? ocrData.challans
-        : [ocrData];
-
+  const handleAutoSave = async (ocrData: any) => {
+    setAutoSaving(true);
+    try {
+      const challans = Array.isArray(ocrData.challans) ? ocrData.challans : [ocrData];
+      
+      // First, populate the form with extracted data - pass the full ocrData object
+      toast.info("📋 Auto-filling form fields with extracted data...");
+      
+      // Call onFill with the same data structure as the non-auto-save flow
+      onFill(ocrData);
+      
+      // Transform OCR data to Order format
+      const todayDate = new Date().toISOString().split("T")[0];
       const payload = challans.map((c: any) => ({
-        orderDate:
-          c.date ||
-          c.orderDate ||
-          c.challan_date ||
-          new Date().toISOString().split("T")[0],
+        orderDate: todayDate,
         firmId: c.firmId || "",
         firmName: c.firmName || c.firm || c.delivery_at || "",
         partyId: c.partyId || "",
@@ -90,7 +185,7 @@ export function QuickOrderUpload({ onSuccess, onClose, onFormFill }: QuickOrderU
         partyChNo: c.challanNo || c.challan_no || c.ch_no || "",
         marka: c.marka || c.mka || "",
         weaverId: c.weaverId || "",
-        weaverName: c.weaverName || c.weaver || c.firm || "",
+        weaverName: c.weaverName || c.weaver || "",
         weaverChNo: c.weaverChNo || c.weaver_challan_no || "",
         weaverMarka: c.weaverMarka || c.weaver_marka || c.mka || "",
         weaverChDate: c.chDate || c.challan_date || c.ch_date || "",
@@ -122,148 +217,224 @@ export function QuickOrderUpload({ onSuccess, onClose, onFormFill }: QuickOrderU
         ocrExtractedData: JSON.stringify(c),
       }));
 
-      // Create batch orders
+      // Create batch orders in background
       const result = await createBatch({ challans: payload });
-      const orderIds = result
-        ?.map((r: any) => r.order?._id)
-        .filter(Boolean) || [];
-
-      setCreatedOrders(orderIds);
-      setCompleted(true);
-
-      toast.success(`✅ Successfully created ${orderIds.length} order(s)!`);
-
-      if (onSuccess) {
-        onSuccess(orderIds);
+      const orderIds = result?.map((r: any) => r.order?._id).filter(Boolean) || [];
+      
+      setSavedOrderIds(orderIds);
+      toast.success(`✅ Successfully created ${orderIds.length} order(s)! Form fields auto-populated.`);
+      
+      if (onAutoSaveSuccess) {
+        onAutoSaveSuccess(orderIds);
       }
-
-      // Auto-close after 3 seconds if successful
-      setTimeout(() => {
-        if (onClose) onClose();
-      }, 3000);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to process file");
-      console.error("Upload error:", e);
+      toast.error(e instanceof Error ? e.message : "Failed to auto-save orders");
+      console.error("Auto-save error:", e);
     } finally {
-      setUploading(false);
-      setProcessing(false);
+      setAutoSaving(false);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
-    }
+    if (file) uploadFile(file);
   };
 
-  if (completed) {
-    return (
-      <Card className="border-green-200 bg-green-50 shadow-md">
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center text-center gap-4">
-            <div className="bg-green-100 p-4 rounded-full">
-              <CheckCircle2 size={32} className="text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-green-900">
-                ✅ Orders Auto-Saved & Form Populated!
-              </h3>
-              <p className="text-sm text-green-700 mt-1">
-                {createdOrders.length} order{createdOrders.length !== 1 ? "s" : ""}{" "}
-                created and form fields auto-filled with extracted data.
-              </p>
-              {createdOrders.length > 0 && (
-                <div className="mt-3 p-2 bg-white rounded border border-green-200">
-                  <p className="text-xs font-mono text-green-800">
-                    Order IDs: {createdOrders.join(", ")}
-                  </p>
-                </div>
-              )}
-              <p className="text-xs text-green-700 mt-3 italic">
-                You can now review the populated form and submit to proceed to challan creation.
-              </p>
-            </div>
-            <Button
-              onClick={onClose}
-              className="w-full bg-green-600 hover:bg-green-700 text-white cursor-pointer"
-            >
-              Close & Review Form
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleRetry = () => {
+    if (lastFile) runOcr(lastFile);
+  };
 
-  const isLoading = uploading || processing;
+  const confidenceColor =
+    ocrResult?.confidence === "high"
+      ? "bg-green-100 text-green-700"
+      : ocrResult?.confidence === "medium"
+        ? "bg-yellow-100 text-yellow-700"
+        : "bg-red-100 text-red-700";
+
+  const isLoading = uploading || extracting || autoSaving;
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 shadow-md">
+    <Card className="border-primary/20 bg-muted/30 mb-6 shadow-md overflow-hidden flex flex-col">
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary/20 p-2 rounded-lg">
-            <Zap size={18} className="text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-base">Quick Order Upload</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Upload a challan PDF and we'll create the order automatically
-            </p>
-          </div>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText size={16} className="text-primary" />
+            {variant === "split" ? "Document Preview" : "OCR Challan Reader"}
+          </CardTitle>
+          {variant !== "split" && (
+            <Button size="icon" variant="ghost" onClick={onClose} className="cursor-pointer h-7 w-7">
+              <X size={16} />
+            </Button>
+          )}
+        </div>
+        {variant !== "split" && (
+          <p className="text-xs text-muted-foreground">
+            Upload a challan image or PDF — AI will extract and auto-fill the order form
+          </p>
+        )}
+        
+        {/* Auto-save toggle */}
+        <div className="mt-3 flex items-center gap-3 p-3 bg-primary/5 rounded-lg border border-primary/10">
+          <input
+            type="checkbox"
+            id="auto-save-toggle"
+            checked={enableAutoSave}
+            onChange={(e) => setEnableAutoSave(e.target.checked)}
+            className="cursor-pointer"
+          />
+          <label htmlFor="auto-save-toggle" className="text-sm cursor-pointer flex items-center gap-2">
+            <Save size={14} className="text-primary" />
+            <span className="font-medium">Auto-save orders after extraction</span>
+            <span className="text-xs text-muted-foreground">(Creates orders directly without editing)</span>
+          </label>
         </div>
       </CardHeader>
-
-      <CardContent className="space-y-4">
-        {isLoading ? (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <Spinner />
-            <p className="text-sm text-muted-foreground font-medium animate-pulse">
-              {uploading
-                ? "Uploading challan..."
-                : "Processing and creating orders..."}
-            </p>
-          </div>
-        ) : (
+      <CardContent className="space-y-4 overflow-y-auto flex-1 pb-6">
+        {/* Upload Zone */}
+        {!isLoading && !ocrResult && (
+          <>
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-primary/30 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer">
-              <Upload size={20} className="text-primary" />
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer"
+            >
+              <Upload size={22} className="text-muted-foreground" />
               <span className="text-sm font-medium">Upload File</span>
-              <span className="text-xs text-muted-foreground">
-                PDF / JPG / PNG
-              </span>
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isLoading}
-              />
-            </label>
-
-            <label className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-primary/30 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer">
-              <Camera size={20} className="text-primary" />
-              <span className="text-sm font-medium">Capture Photo</span>
+              <span className="text-xs text-muted-foreground">PDF / JPG / PNG</span>
+            </button>
+            <button
+              onClick={() => cameraRef.current?.click()}
+              className="flex flex-col items-center gap-2 p-4 border-2 border-dashed border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer"
+            >
+              <Camera size={22} className="text-muted-foreground" />
+              <span className="text-sm font-medium">Camera Scan</span>
               <span className="text-xs text-muted-foreground">Mobile camera</span>
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isLoading}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+          <div className="mt-4 flex justify-center">
+            <a 
+              href="/challan-template.pdf" 
+              download="Challan_Template.pdf"
+              className="text-sm text-primary hover:underline flex items-center gap-1"
+            >
+              <FileText size={14} /> Download Template PDF
+            </a>
+          </div>
+        </>
+        )}
+
+        {/* Preview Document (Show as soon as we have a URL) */}
+        {previewUrl && (
+          <div className={cn(
+            "relative w-full rounded-lg border border-border overflow-hidden bg-muted/30",
+            variant === "split" && "sticky top-4"
+          )}>
+            {mimeType.startsWith("image/") ? (
+              <img
+                src={previewUrl}
+                alt="Challan preview"
+                className="w-full max-h-[80vh] object-contain"
               />
-            </label>
+            ) : mimeType === "application/pdf" ? (
+              <div className="flex flex-col">
+                <object
+                  data={previewUrl}
+                  type="application/pdf"
+                  className={cn("w-full", variant === "split" ? "h-[85vh]" : "h-[500px]")}
+                >
+                  <embed src={previewUrl} type="application/pdf" />
+                  <div className="p-10 text-center space-y-4">
+                    <p className="text-sm text-muted-foreground">PDF preview not supported by your browser.</p>
+                    <Button variant="outline" onClick={() => window.open(previewUrl || "", "_blank")}>
+                      Open PDF in New Tab
+                    </Button>
+                  </div>
+                </object>
+              </div>
+            ) : null}
           </div>
         )}
 
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex gap-2">
-          <AlertTriangle size={16} className="text-blue-600 shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-700">
-            <strong>Note:</strong> Make sure the challan contains all required
-            fields. Missing data will be marked as draft for manual editing.
-          </p>
-        </div>
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex flex-col items-center gap-3 py-6 border-t border-border mt-4">
+            <Spinner />
+            <p className="text-sm text-muted-foreground font-medium animate-pulse">
+              {uploading ? "Uploading challan..." : extracting ? "Reading challan with AI OCR..." : "Auto-saving orders..."}
+            </p>
+          </div>
+        )}
+
+        {/* Result Details */}
+        {!isLoading && ocrResult && (
+          <div className="space-y-4 border-t border-border pt-4">
+        {/* Success message for auto-save */}
+            {savedOrderIds.length > 0 && (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 size={20} className="text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-green-900">✅ Orders Auto-Saved & Form Populated!</p>
+                    <p className="text-sm text-green-800 mt-1">
+                      Successfully created {savedOrderIds.length} order(s) with ID: {savedOrderIds.join(", ")}
+                    </p>
+                    <p className="text-xs text-green-700 mt-2 italic">
+                      Form fields have been automatically filled with extracted data. You can now review and submit to proceed to challan creation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Confidence badge */}
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${confidenceColor}`}>
+                {ocrResult.confidence === "high" ? "High Confidence" :
+                  ocrResult.confidence === "medium" ? "Medium Confidence" : "Low Confidence — Please Verify"}
+              </span>
+              {ocrResult.unmatchedFields && ocrResult.unmatchedFields.length > 0 && (
+                <span className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  Verify: {ocrResult.unmatchedFields.join(", ")}
+                </span>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleRetry}
+                className="cursor-pointer gap-1"
+              >
+                <RefreshCw size={13} /> Re-scan
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => { setOcrResult(null); setPreviewUrl(null); setSavedOrderIds([]); }}
+                className="cursor-pointer gap-1"
+              >
+                <Upload size={13} /> New File
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -135,110 +135,114 @@ export default function NewLotPage() {
   });
 
   const [takaDetails, setTakaDetails] = useState<any[]>([]);
-  const hasInitialized = useRef(false);
 
   // Auto-fill from challan, order, and ALL masters
   useEffect(() => {
-    if (challan && !hasInitialized.current) {
-      // Find matching account (Firm)
-      const firmAccount = accounts.find(
-        (a: any) =>
-          a._id === challan.firmId ||
-          a.name === (challan.firm || challan.firmName),
+    if (!challan) return;
+
+    // Don't overwrite user edits after table is already filled
+    if (takaDetails.length > 0) return;
+
+    // Find matching account (Firm)
+    const firmAccount = accounts.find(
+      (a: any) =>
+        a._id === challan.firmId ||
+        a.name === (challan.firm || challan.firmName),
+    );
+
+    // Find matching account (Transporter)
+    const transportAccount = accounts.find(
+      (a: any) =>
+        a.roleType === "Transporter" &&
+        (a._id === challan.transporterId || a.name === challan.transpoter),
+    );
+
+    // Find matching quality
+    const qualityMaster = qualities.find(
+      (q: any) =>
+        q._id === challan.qualityId ||
+        q.name === (challan.quality || challan.qualityName) ||
+        q.name === order?.qualityName,
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      firm:
+        firmAccount?.name ||
+        challan.firm ||
+        challan.firmName ||
+        order?.firmName ||
+        "",
+      challanNo: challan.challan_no || challan.challanNo || "",
+      challanDate: (challan.challan_date || challan.date || today).split(
+        "T",
+      )[0],
+      party:
+        challan.party ||
+        challan.marka ||
+        order?.marka ||
+        firmAccount?.name ||
+        "",
+      marka: challan.marka || challan.party || order?.marka || "",
+      gstinNo: firmAccount?.gstin || challan.gstin_no || order?.gstin || "",
+      address:
+        firmAccount?.address || challan.address || order?.address || "",
+      masterAc: order?.masterName || challan.masterAc || "",
+      quality:
+        qualityMaster?.name ||
+        challan.quality ||
+        challan.qualityName ||
+        order?.qualityName ||
+        "",
+      hsnCode:
+        qualityMaster?.hsnCode || challan.hsnCode || order?.hsnCode || "4507",
+      taka: challan.taka || challan.totalTaka || 0,
+      meter: challan.meter || challan.totalMeter || 0,
+      lrNo: challan.lr_no || order?.lrNo || "",
+      lrDate:
+        challan.lr_date || order?.lrDate
+          ? (challan.lr_date || order.lrDate).split("T")[0]
+          : "",
+      transpoter:
+        transportAccount?.name ||
+        challan.transpoter ||
+        order?.transporterName ||
+        "",
+      weight: challan.weight || order?.weight || 0,
+      chadhti: challan.chadhti || order?.chadhti || 0,
+      width: challan.width || order?.width || 0,
+      remark: challan.remark || order?.remark || "",
+    }));
+
+    const tableSource = Array.isArray(challan?.table) && challan.table.length > 0
+      ? challan.table
+      : Array.isArray(challan?.takaDetails) && challan.takaDetails.length > 0
+      ? challan.takaDetails
+      : Array.isArray(order?.takaDetails) && order.takaDetails.length > 0
+      ? order.takaDetails
+      : [];
+
+    if (tableSource.length > 0) {
+      setTakaDetails(
+        tableSource.map((t: any) => ({
+          tn: Number(t.tn ?? t.takaNo ?? 0) || 0,
+          meter: Number(t.meter ?? 0),
+          balanceMtr: Number(t.meter ?? 0),
+        })),
       );
-
-      // Find matching account (Transporter)
-      const transportAccount = accounts.find(
-        (a: any) =>
-          a.roleType === "Transporter" &&
-          (a._id === challan.transporterId || a.name === challan.transpoter),
+    } else if (challan.taka || challan.totalTaka || order?.totalTaka) {
+      const count = Number(
+        challan.taka || challan.totalTaka || order?.totalTaka || 0,
       );
-
-      // Find matching quality
-      const qualityMaster = qualities.find(
-        (q: any) =>
-          q._id === challan.qualityId ||
-          q.name === (challan.quality || challan.qualityName) ||
-          q.name === order?.qualityName,
+      setTakaDetails(
+        Array.from({ length: count }).map(() => ({
+          tn: 0,
+          meter: 0,
+          balanceMtr: 0,
+        })),
       );
-
-      setForm((prev) => ({
-        ...prev,
-        firm:
-          firmAccount?.name ||
-          challan.firm ||
-          challan.firmName ||
-          order?.firmName ||
-          "",
-        challanNo: challan.challan_no || challan.challanNo || "",
-        challanDate: (challan.challan_date || challan.date || today).split(
-          "T",
-        )[0],
-        party:
-          challan.party ||
-          challan.marka ||
-          order?.marka ||
-          firmAccount?.name ||
-          "",
-        marka: challan.marka || challan.party || order?.marka || "",
-        gstinNo: firmAccount?.gstin || challan.gstin_no || order?.gstin || "",
-        address:
-          firmAccount?.address || challan.address || order?.address || "",
-        masterAc: order?.masterName || challan.masterAc || "",
-        quality:
-          qualityMaster?.name ||
-          challan.quality ||
-          challan.qualityName ||
-          order?.qualityName ||
-          "",
-        hsnCode:
-          qualityMaster?.hsnCode || challan.hsnCode || order?.hsnCode || "4507",
-        taka: challan.taka || challan.totalTaka || 0,
-        meter: challan.meter || challan.totalMeter || 0,
-        lrNo: challan.lr_no || order?.lrNo || "",
-        lrDate:
-          challan.lr_date || order?.lrDate
-            ? (challan.lr_date || order.lrDate).split("T")[0]
-            : "",
-        transpoter:
-          transportAccount?.name ||
-          challan.transpoter ||
-          order?.transporterName ||
-          "",
-        weight: challan.weight || order?.weight || 0,
-        chadhti: challan.chadhti || order?.chadhti || 0,
-        width: challan.width || order?.width || 0,
-        remark: challan.remark || order?.remark || "",
-      }));
-
-      const availableTakaDetails = 
-        (challan.takaDetails && challan.takaDetails.length > 0) ? challan.takaDetails :
-        (order?.takaDetails && order?.takaDetails.length > 0) ? order.takaDetails :
-        null;
-
-      if (availableTakaDetails && Array.isArray(availableTakaDetails)) {
-        setTakaDetails(
-          availableTakaDetails.map((t: any) => ({
-            tn: t.takaNo || t.tn || t.taka_no,
-            meter: Number(t.meter || 0),
-            balanceMtr: Number(t.meter || 0),
-          })),
-        );
-      } else if (challan.taka || challan.totalTaka || order?.totalTaka) {
-        const count = Number(
-          challan.taka || challan.totalTaka || order?.totalTaka || 0,
-        );
-        setTakaDetails(
-          Array.from({ length: count }).map(() => ({
-            tn: "",
-            meter: 0,
-            balanceMtr: 0,
-          })),
-        );
-      }
-      hasInitialized.current = true;
     }
-  }, [challan, order, accounts, qualities, weavers]);
+  }, [challan, order, accounts, qualities, weavers, takaDetails.length, today]);
 
   useEffect(() => {
     const amt = form.meter * form.fasRate;
@@ -514,13 +518,9 @@ export default function NewLotPage() {
                   size="sm"
                   className="h-8 text-xs font-bold hover:bg-primary/10"
                   onClick={() => {
-                    const nextTn =
-                      takaDetails.length > 0
-                        ? Math.max(...takaDetails.map((t) => t.tn)) + 1
-                        : 1;
                     setTakaDetails([
                       ...takaDetails,
-                      { tn: nextTn, meter: 0, balanceMtr: 0 },
+                      { tn: 0, meter: 0, balanceMtr: 0 },
                     ]);
                   }}
                 >
@@ -547,16 +547,17 @@ export default function NewLotPage() {
                 <tbody className="divide-y">
                   {takaDetails.map((t, idx) => (
                     <tr key={idx} className="hover:bg-muted/30 group">
-                      <td className="px-4 py-3 font-mono text-muted-foreground">
+                      <td className="px-4 py-3 font-mono text-muted-foreground text-center">
                         {idx + 1}
                       </td>
                       <td className="px-2 py-1">
                         <Input
                           type="number"
-                          value={t.tn}
+                          value={t.tn || ""}
+                          placeholder="-"
                           onChange={(e) => {
                             const newDetails = [...takaDetails];
-                            newDetails[idx].tn = Number(e.target.value);
+                            newDetails[idx].tn = Number(e.target.value) || 0;
                             setTakaDetails(newDetails);
                           }}
                           className="h-8 border-none bg-muted/40 focus-visible:ring-1 text-center font-mono"
@@ -596,24 +597,27 @@ export default function NewLotPage() {
                 </tbody>
               </table>
             </CardContent>
+            {takaDetails.length === 0 && (
+              <div className="p-6 text-center text-muted-foreground text-sm">
+                No breakdown rows yet. Add rows to get started.
+              </div>
+            )}
             <div className="p-4 border-t bg-muted/10">
               <div className="flex justify-between items-center px-2">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                    Sum
+                    Total Taka
                   </span>
                   <span className="text-xl font-black text-emerald-500 font-mono">
-                    {takaDetails
-                      .reduce((acc, curr) => acc + (Number(curr.meter) || 0), 0)
-                      .toFixed(1)}
+                    {takaDetails.length}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                    Target
+                    Total Meter
                   </span>
                   <span className="text-xl font-black text-muted-foreground/40 font-mono">
-                    {form.meter || 0}
+                    {takaDetails.reduce((acc, curr) => acc + (Number(curr.meter) || 0), 0).toFixed(2)}
                   </span>
                 </div>
               </div>
