@@ -88,28 +88,84 @@ function LotDetailInner({ id }: { id: string }) {
       </div>
 
       {/* Details */}
-      <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-        <div><span className="text-muted-foreground">Party</span><p className="font-semibold text-foreground">{lot.partyName}</p></div>
-        <div><span className="text-muted-foreground">Marka</span><p className="font-semibold text-foreground">{lot.marka}</p></div>
-        <div><span className="text-muted-foreground">Quality</span><p className="font-semibold text-foreground">{lot.qualityName || "—"}</p></div>
-        <div><span className="text-muted-foreground">Process Type</span><p className="font-semibold text-foreground">{lot.processType || "—"}</p></div>
-        <div><span className="text-muted-foreground">Total Taka</span><p className="font-semibold text-foreground">{lot.totalTaka}</p></div>
-        <div><span className="text-muted-foreground">Total Meter</span><p className="font-semibold text-foreground">{lot.totalMeter}m</p></div>
-        <div><span className="text-muted-foreground">Balance Meter</span><p className="font-semibold text-foreground">{lot.balanceMeter}m</p></div>
-        {lot.finishedMeter !== undefined && (
-          <div><span className="text-muted-foreground">Finished Meter</span><p className="font-semibold text-foreground">{lot.finishedMeter}m</p></div>
-        )}
-        {lot.shortage !== undefined && (
-          <div><span className="text-muted-foreground">Shortage</span><p className="font-semibold text-foreground">{lot.shortage}m</p></div>
-        )}
-        {lot.locationName && (
-          <div><span className="text-muted-foreground">Location</span><p className="font-semibold text-foreground">{lot.locationName}</p></div>
-        )}
-        <div className="col-span-2">
-          <span className="text-muted-foreground">Linked Challan</span>
-          <Link href={`/challans/${lot.challanId}`} className="block text-primary font-semibold hover:underline">
-            View Challan →
-          </Link>
+      <div className="bg-card border border-border rounded-xl p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6 text-sm">
+        <div>
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Lot No.</span>
+          <p className="font-bold text-lg text-foreground">{lot.lotNo}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Party Name</span>
+          <p className="font-bold text-lg text-foreground">{lot.partyName}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Party Ch No.</span>
+          <p className="font-bold text-lg text-foreground">{lot.orderId?.weaverChNo || "—"}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Party Challan Date</span>
+          <p className="font-bold text-lg text-foreground">{lot.orderId?.weaverChDate || "—"}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Quality</span>
+          <p className="font-bold text-lg text-foreground">{lot.qualityName || "—"}</p>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Weaver Ka Name</span>
+          <p className="font-bold text-lg text-foreground">{lot.orderId?.weaverName || "—"}</p>
+        </div>
+        
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Total Taka</span>
+          <p className="font-bold text-lg text-foreground">{lot.totalTaka}</p>
+        </div>
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Total Meter</span>
+          <p className="font-bold text-lg text-emerald-600">{lot.totalMeter}m</p>
+        </div>
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Balance Meter</span>
+          <p className="font-bold text-lg text-primary">{lot.balanceMeter}m</p>
+        </div>
+
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Grey Rate</span>
+          <p className="font-bold text-lg text-foreground">₹{lot.orderId?.greyRate || "0"}</p>
+        </div>
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Grey Amount</span>
+          <p className="font-bold text-lg text-primary">₹{(lot.totalMeter * (lot.orderId?.greyRate || 0)).toLocaleString()}</p>
+        </div>
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Weight</span>
+          <p className="font-bold text-lg text-foreground">{lot.orderId?.weight || "—"}</p>
+        </div>
+
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Width</span>
+          <p className="font-bold text-lg text-foreground">{lot.orderId?.width || "—"}</p>
+        </div>
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Length</span>
+          <p className="font-bold text-lg text-foreground">{lot.orderId?.length || "—"}</p>
+        </div>
+        <div className="border-t pt-4">
+          <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Chaldti</span>
+          <p className="font-bold text-lg text-foreground">{lot.orderId?.chadhti || "—"}</p>
+        </div>
+
+        <div className="col-span-1 md:col-span-2 lg:col-span-3 border-t pt-4 flex gap-6">
+          <div>
+            <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Linked Challan</span>
+            <Link href={`/challans/${lot.challanId?._id || lot.challanId}`} className="text-primary font-bold hover:underline">
+              View Challan →
+            </Link>
+          </div>
+          <div>
+            <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Linked Order</span>
+            <Link href={`/orders/${lot.orderId?._id || lot.orderId}`} className="text-primary font-bold hover:underline">
+              View Order →
+            </Link>
+          </div>
         </div>
       </div>
 

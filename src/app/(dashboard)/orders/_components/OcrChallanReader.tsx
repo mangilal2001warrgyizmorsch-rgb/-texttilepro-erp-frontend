@@ -47,6 +47,7 @@ type Props = {
   onAutoSaveSuccess?: (orderIds: string[]) => void;
   variant?: "default" | "split";
   onExtractingChange?: (extracting: boolean) => void;
+  initialFileUrl?: string;
 };
 
 export default function OcrChallanReader({
@@ -57,6 +58,7 @@ export default function OcrChallanReader({
   onAutoSaveSuccess,
   variant = "default",
   onExtractingChange,
+  initialFileUrl,
 }: Props) {
   const extractChallan = useMutation(api.ocr.extract);
   const createBatch = useMutation(api.orders.createBatch);
@@ -68,11 +70,21 @@ export default function OcrChallanReader({
   const [extracting, setExtracting] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastFile, setLastFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [mimeType, setMimeType] = useState("image/jpeg");
+  const [mimeType, setMimeType] = useState("application/pdf");
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [enableAutoSave, setEnableAutoSave] = useState(autoSave ?? false);
   const [savedOrderIds, setSavedOrderIds] = useState<string[]>([]);
+
+  // Initialize previewUrl from initialFileUrl if provided
+  const [previewUrl, setPreviewUrl] = useState<string | null>(() => {
+    if (initialFileUrl) {
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5500/api").replace("/api", "");
+      return initialFileUrl.startsWith("http")
+        ? initialFileUrl
+        : baseUrl + (initialFileUrl.startsWith("/") ? "" : "/") + initialFileUrl;
+    }
+    return null;
+  });
 
   // Auto-trigger camera if requested
   useEffect(() => {
@@ -80,6 +92,21 @@ export default function OcrChallanReader({
       cameraRef.current.click();
     }
   }, [autoCamera]);
+
+  // Sync previewUrl with initialFileUrl when it changes (e.g. switching batch items)
+  useEffect(() => {
+    if (initialFileUrl && !lastFile) {
+      const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5500/api").replace("/api", "");
+      const fullUrl = initialFileUrl.startsWith("http")
+        ? initialFileUrl
+        : baseUrl + (initialFileUrl.startsWith("/") ? "" : "/") + initialFileUrl;
+      
+      setPreviewUrl(fullUrl);
+      setMimeType("application/pdf");
+    } else if (!initialFileUrl && !lastFile) {
+      setPreviewUrl(null);
+    }
+  }, [initialFileUrl, lastFile]);
 
   const uploadFile = async (file: File) => {
     setUploading(true);
@@ -143,6 +170,7 @@ export default function OcrChallanReader({
         // Single: pass flattened result with fallbacks
         onFill({
           ...result,
+          fileUrl: data.fileUrl,
           partyName: result.partyName ?? result.firm ?? result.party ?? "",
           date: result.date ?? result.challan_date ?? result.ch_date ?? "",
           challanNo: result.challanNo ?? result.challan_no ?? "",
@@ -322,7 +350,7 @@ export default function OcrChallanReader({
 
       <CardContent className="space-y-4 overflow-y-auto flex-1 pb-6">
         {/* Upload Zone */}
-        {!isLoading && !ocrResult && (
+        {!isLoading && !ocrResult && !previewUrl && (
           <>
             <div className="grid grid-cols-2 gap-3">
               <button
@@ -361,16 +389,24 @@ export default function OcrChallanReader({
                 onChange={handleFileChange}
               />
             </div>
-            <div className="mt-4 flex justify-center">
-              <a
-                href="/challan-template.pdf"
-                download="Challan_Template.pdf"
-                className="text-sm text-primary hover:underline flex items-center gap-1"
-              >
-                <FileText size={14} /> Download Template PDF
-              </a>
-            </div>
           </>
+        )}
+
+        {/* Change Document Button (when preview is shown) */}
+        {!isLoading && !ocrResult && previewUrl && (
+          <div className="flex justify-center pb-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                setPreviewUrl(null);
+                setLastFile(null);
+              }}
+              className="text-xs"
+            >
+              <RefreshCw size={12} className="mr-2" /> Upload Different Document
+            </Button>
+          </div>
         )}
 
         {/* PDF / Image Preview */}
@@ -389,27 +425,14 @@ export default function OcrChallanReader({
               />
             ) : mimeType === "application/pdf" ? (
               <div className="flex flex-col">
-                <object
-                  data={previewUrl}
-                  type="application/pdf"
+                <iframe
+                  src={previewUrl}
                   className={cn(
                     "w-full",
                     variant === "split" ? "h-[85vh]" : "h-[500px]"
                   )}
-                >
-                  <embed src={previewUrl} type="application/pdf" />
-                  <div className="p-10 text-center space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      PDF preview not supported by your browser.
-                    </p>
-                    <Button
-                      variant="outline"
-                      onClick={() => window.open(previewUrl || "", "_blank")}
-                    >
-                      Open PDF in New Tab
-                    </Button>
-                  </div>
-                </object>
+                  title="PDF Preview"
+                />
               </div>
             ) : null}
           </div>

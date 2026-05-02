@@ -114,6 +114,7 @@ type OrderForm = {
   vehicleNo: string;
   driverMobile: string;
   takaDetails: TakaRow[];
+  ocrFileId: string;
 };
 
 const emptyOrder = (): OrderForm => ({
@@ -158,6 +159,7 @@ const emptyOrder = (): OrderForm => ({
   vehicleNo: "",
   driverMobile: "",
   takaDetails: [{ takaNo: "", marka: "", meter: "", weight: "" }],
+  ocrFileId: "",
 });
 
 // Helper: build a MasterDetail from a loaded account record
@@ -233,6 +235,7 @@ export function BatchOrderEntry({
             meter: t.meter?.toString() || "",
             weight: t.weight?.toString() || "",
           })) || [{ takaNo: "", marka: "", meter: "", weight: "" }],
+          ocrFileId: initialOrder.ocrFileId || "",
         },
       ];
     }
@@ -286,6 +289,7 @@ export function BatchOrderEntry({
           "lrDate",
           "gstin",
           "address",
+          "ocrFileId",
         ];
 
         const changedHeaderFields = headerFields.filter(
@@ -681,11 +685,11 @@ export function BatchOrderEntry({
         // ── 4. QUALITY: DB match (by name) → use DB fields; else OCR ──────
         let qualityId = c.qualityId || "";
         let qualityName2 = c.qualityName || c.quality || "";
-        let qualityHsnCode = c.hsnCode || "";
-        let qualityItemDesc = c.itemDescription || "";
-        let qualityWidth = (c.width || "").toString();
-        let qualityJobRate = (c.jobRate || "").toString();
-        let qualityGreyRate = (c.greyRate || "").toString();
+        let qualityHsnCode = c.qualityDetails?.hsnCode || c.hsnCode || "";
+        let qualityItemDesc = c.qualityDetails?.itemDescription || c.itemDescription || "";
+        let qualityWidth = (c.qualityDetails?.width || c.width || "").toString();
+        let qualityJobRate = (c.qualityDetails?.defaultJobRate || c.jobRate || "").toString();
+        let qualityGreyRate = (c.qualityDetails?.greyRate || c.greyRate || "").toString();
 
         if (!qualityId && qualityName2) {
           const normalizeQualityName = (v: string = "") => v.trim().toUpperCase().replace(/[-_/]/g, " ").replace(/\s+/g, " ");
@@ -766,6 +770,7 @@ export function BatchOrderEntry({
         const mapped = challans.map((c: any) => ({
           ...emptyOrder(),
           ...processOneChallan(c),
+          ocrFileId: data.fileUrl || "",
         }));
 
         setOrders(mapped);
@@ -785,6 +790,7 @@ export function BatchOrderEntry({
 
         updateOrderObject({
           ...processed,
+          ocrFileId: data.fileUrl || "",
           takaDetails:
             processed.takaDetails && processed.takaDetails.length > 0
               ? processed.takaDetails
@@ -848,6 +854,7 @@ export function BatchOrderEntry({
           meter: Number(t.meter),
           weight: Number(t.weight) || 0,
         })),
+        ocrFileId: o.ocrFileId,
       }));
       if (initialOrder) {
         await updateOrder({ id: initialOrder._id, ...payload[0] });
@@ -899,33 +906,31 @@ export function BatchOrderEntry({
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant={showOcr ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => setShowOcr(!showOcr)}
+            className="cursor-pointer"
+          >
+            {showOcr ? (
+              <>
+                <X size={14} className="mr-2" /> Close Preview
+              </>
+            ) : (
+              <>
+                <Scan size={14} className="mr-2" /> {initialOrder ? "Show/Change PDF" : "OCR Scan PDF"}
+              </>
+            )}
+          </Button>
           {!initialOrder && (
-            <>
-              <Button
-                variant={showOcr ? "destructive" : "outline"}
-                size="sm"
-                onClick={() => setShowOcr(!showOcr)}
-                className="cursor-pointer"
-              >
-                {showOcr ? (
-                  <>
-                    <X size={14} className="mr-2" /> Close Preview
-                  </>
-                ) : (
-                  <>
-                    <Scan size={14} className="mr-2" /> OCR Scan PDF
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                className="cursor-pointer"
-              >
-                <RotateCcw size={14} className="mr-2" /> Reset
-              </Button>
-            </>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              className="cursor-pointer"
+            >
+              <RotateCcw size={14} className="mr-2" /> Reset
+            </Button>
           )}
           <Button
             size="sm"
@@ -945,14 +950,15 @@ export function BatchOrderEntry({
 
       <div className={cn(
         "grid grid-cols-1 gap-6 items-start",
-        showOcr ? "lg:grid-cols-2" : "lg:grid-cols-12"
+        (showOcr || currentForm.ocrFileId) ? "lg:grid-cols-2" : "lg:grid-cols-12"
       )}>
         {/* Left Side: OCR Scan / PDF Preview */}
-        {!initialOrder && showOcr && (
-          <div className="lg:sticky lg:top-[80px]">
+        {(showOcr || currentForm.ocrFileId) && (
+          <div className="lg:sticky lg:top-[80px] space-y-4">
             <OcrChallanReader
               key={resetKey}
               variant="split"
+              initialFileUrl={currentForm.ocrFileId}
               onFill={(res) => {
                 handleOcrFill(res);
               }}
@@ -965,7 +971,7 @@ export function BatchOrderEntry({
         {/* Right Side: Form Content */}
         <div className={cn(
           "space-y-6 relative",
-          showOcr ? "lg:col-span-1" : "lg:col-span-12"
+          (showOcr || currentForm.ocrFileId) ? "lg:col-span-1" : "lg:col-span-12"
         )}>
           {isOcrExtracting && (
             <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl border border-border">
@@ -978,11 +984,11 @@ export function BatchOrderEntry({
           )}
           <div className={cn(
             "grid grid-cols-1 gap-6 items-start",
-            showOcr ? "grid-cols-1" : "lg:grid-cols-12"
+            (showOcr || currentForm.ocrFileId) ? "grid-cols-1" : "lg:grid-cols-12"
           )}>
             <div className={cn(
               "space-y-6",
-              showOcr ? "col-span-1" : "lg:col-span-8"
+              (showOcr || currentForm.ocrFileId) ? "col-span-1" : "lg:col-span-8"
             )}>
           {!initialOrder && (
             <Card className="shadow-sm">
@@ -1118,6 +1124,8 @@ export function BatchOrderEntry({
                     updateOrderObject({
                       partyId: v,
                       partyName: p?.accountName || "",
+                      codeMasterId: "",
+                      marka: "",
                     });
                   }}
                 >
@@ -1150,7 +1158,11 @@ export function BatchOrderEntry({
                   <SelectTrigger>
                     <SelectValue
                       placeholder={
-                        codeMaster ? "Select code master..." : "Loading..."
+                        !form.partyId
+                          ? "Select party first"
+                          : codeMaster
+                            ? "Select code master..."
+                            : "Loading..."
                       }
                     />
                   </SelectTrigger>
@@ -1158,13 +1170,15 @@ export function BatchOrderEntry({
                     {codeMaster &&
                     Array.isArray(codeMaster) &&
                     codeMaster.length > 0 ? (
-                      codeMaster.map((cm: any) => (
-                        <SelectItem key={cm._id} value={cm._id}>
-                          <div className="flex flex-col py-1">
-                            <span>{cm.masterName || cm.accountName}</span>
-                          </div>
-                        </SelectItem>
-                      ))
+                      (codeMaster as any[])
+                        .filter((cm: any) => form.partyId && cm.accountId === form.partyId)
+                        .map((cm: any) => (
+                          <SelectItem key={cm._id} value={cm._id}>
+                            <div className="flex flex-col py-1">
+                              <span>{cm.masterName || cm.accountName}</span>
+                            </div>
+                          </SelectItem>
+                        ))
                     ) : (
                       <SelectItem value="_empty">No Code Masters</SelectItem>
                     )}
@@ -1371,7 +1385,7 @@ export function BatchOrderEntry({
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">
-                  Chadti
+                  Chadhti
                 </Label>
                 <Input
                   value={form.chadhti}
@@ -1435,7 +1449,7 @@ export function BatchOrderEntry({
 
             <div className={cn(
               "sticky top-[80px]",
-              showOcr ? "col-span-1 relative lg:static" : "lg:col-span-4"
+              (showOcr || currentForm.ocrFileId) ? "col-span-1 relative lg:static" : "lg:col-span-4"
             )}>
           <Card className="shadow-sm border-primary/20">
             <CardHeader className="pb-3 border-b bg-primary/5 flex flex-row items-center justify-between">

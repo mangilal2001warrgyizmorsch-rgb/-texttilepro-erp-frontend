@@ -135,7 +135,7 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
                   Total Meter
                 </span>
                 <p className="text-lg font-bold text-primary">
-                  {order.totalMeter.toFixed(1)}m
+                  {order.totalMeter.toFixed(1)}
                 </p>
               </div>
               <div className="bg-primary/5 border border-primary/10 rounded-lg p-3 text-center">
@@ -143,7 +143,7 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
                   Average
                 </span>
                 <p className="text-lg font-bold text-primary">
-                  {(order.totalMeter / order.totalTaka).toFixed(1)}m
+                  {(order.totalMeter / order.totalTaka).toFixed(1)}
                 </p>
               </div>
             </div>
@@ -158,7 +158,8 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
                   <table className="w-full text-xs">
                     <thead className="bg-muted/50 border-b">
                       <tr>
-                        <th className="px-4 py-2 text-center w-16">T.N.</th>
+                        <th className="px-4 py-2 text-center w-12">Srl No.</th>
+                        <th className="px-4 py-2 text-center w-20">Taka Marka</th>
                         <th className="px-4 py-2 text-left">Meter</th>
                         <th className="px-4 py-2 text-left">Weight</th>
                         <th className="px-4 py-2 text-center">Status</th>
@@ -171,10 +172,13 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
                           className="hover:bg-muted/10 transition-colors"
                         >
                           <td className="px-4 py-2 text-center font-medium text-muted-foreground">
+                            {i + 1}
+                          </td>
+                          <td className="px-4 py-2 text-center font-medium text-muted-foreground">
                             {taka.takaNo}
                           </td>
                           <td className="px-4 py-2 font-bold text-primary">
-                            {taka.meter}m
+                            {taka.meter}
                           </td>
                           <td className="px-4 py-2 text-muted-foreground">
                             {taka.weight ? `${taka.weight}kg` : "—"}
@@ -187,13 +191,16 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-muted/20 font-bold border-t">
+                    <tfoot className="bg-muted/20 font-bold border-t text-xs">
                       <tr>
                         <td className="px-4 py-2 text-center text-muted-foreground">
                           TOTAL
                         </td>
+                        <td className="px-4 py-2 text-center text-muted-foreground">
+                          {order.totalTaka}
+                        </td>
                         <td className="px-4 py-2 text-primary">
-                          {order.totalMeter.toFixed(1)}m
+                          {order.totalMeter.toFixed(1)}
                         </td>
                         <td colSpan={2}></td>
                       </tr>
@@ -225,7 +232,7 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
             Close
           </Button>
           <Button
-            onClick={() => router.push(`/challans/new?orderId=${order._id}`)}
+            onClick={() => router.push(`/challans/new/${order._id}`)}
             className="gap-2 bg-green-600 hover:bg-green-700 text-white"
           >
             <CheckCircle size={16} />

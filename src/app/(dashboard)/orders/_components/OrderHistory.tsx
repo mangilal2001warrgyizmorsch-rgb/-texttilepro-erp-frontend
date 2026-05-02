@@ -84,10 +84,11 @@ export function OrderHistory() {
 
   const filtered = (orders ?? []).filter((o) => {
     const matchSearch =
-      o.firmName.toLowerCase().includes(search.toLowerCase()) ||
-      o.marka.toLowerCase().includes(search.toLowerCase()) ||
-      o.qualityName.toLowerCase().includes(search.toLowerCase()) ||
-      o.challanNo?.toLowerCase().includes(search.toLowerCase());
+      o.partyName?.toLowerCase().includes(search.toLowerCase()) ||
+      o.weaverName?.toLowerCase().includes(search.toLowerCase()) ||
+      o.weaverChNo?.toLowerCase().includes(search.toLowerCase()) ||
+      o.brokerName?.toLowerCase().includes(search.toLowerCase()) ||
+      o.codeMasterId?.masterName?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === "all" || o.status === filterStatus;
     return matchSearch && matchStatus;
   });
@@ -111,7 +112,7 @@ export function OrderHistory() {
           <Input
             id="order-search-input"
             className="pl-9 h-9 bg-muted/20 border-none focus-visible:ring-1"
-            placeholder="Search by mill, marka, quality or challan..."
+            placeholder="Search by party, master, weaver or challan..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -187,32 +188,32 @@ export function OrderHistory() {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div className="space-y-0.5">
-                    <p className="font-bold text-sm group-hover:text-primary transition-colors">{o.firmName}</p>
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Challan: {o.challanNo || "N/A"}</p>
+                    <p className="font-bold text-sm group-hover:text-primary transition-colors line-clamp-1">{o.partyName || "Unknown Party"}</p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider line-clamp-1">Master: {o.codeMasterId?.masterName || o.brokerName || "N/A"}</p>
                   </div>
                   <Badge variant="outline" className={cn("text-[9px] font-bold uppercase h-5 px-2", STATUS_COLORS[o.status])}>
-                    {STATUS_LABELS[o.status]}
+                    {STATUS_LABELS[o.status] || o.status}
                   </Badge>
                 </div>
                 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Quality</span>
-                    <span className="font-semibold">{o.qualityName}</span>
+                    <span className="text-muted-foreground">Weaver</span>
+                    <span className="font-semibold line-clamp-1 text-right">{o.weaverName || "N/A"}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Quantity</span>
-                    <span className="font-mono">{o.totalTaka} Tk / {o.totalMeter.toFixed(1)}m</span>
+                    <span className="font-mono">{o.totalTaka} Tk / {o.totalMeter.toFixed(1)}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">Marka</span>
-                    <span className="bg-muted px-1.5 py-0.5 rounded font-mono text-[10px]">{o.marka}</span>
+                    <span className="text-muted-foreground">W. Challan</span>
+                    <span className="bg-muted px-1.5 py-0.5 rounded font-mono text-[10px]">{o.weaverChNo || "N/A"}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between mt-4 pt-3 border-t">
                   <span className="text-[10px] text-muted-foreground font-medium">
-                    {safeFormat(o.orderDate || o.createdAt, "dd MMM yyyy")}
+                    {safeFormat(o.weaverChDate || o.orderDate || o.createdAt, "dd MMM yyyy")}
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
@@ -239,14 +240,14 @@ export function OrderHistory() {
             <table className="w-full text-sm">
               <thead className="bg-muted/40 border-b">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Mill / Firm</th>
-                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Challan No</th>
-                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Quality</th>
-                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Marka</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Party Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Master Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Weaver Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Weaver Challan No</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Weaver Date</th>
                   <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Taka</th>
                   <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Meter</th>
                   <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Status</th>
-                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Date</th>
                   <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase w-24">Actions</th>
                 </tr>
               </thead>
@@ -258,25 +259,26 @@ export function OrderHistory() {
                     onClick={() => setSelectedOrder(o)}
                   >
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-sm group-hover:text-primary transition-colors">{o.firmName}</p>
+                      <p className="font-semibold text-sm group-hover:text-primary transition-colors">{o.partyName || "N/A"}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{o.challanNo || "N/A"}</span>
+                      <span className="font-mono text-xs">{o.codeMasterId?.masterName || o.brokerName || "N/A"}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm">{o.qualityName}</td>
+                    <td className="px-4 py-3 text-sm">{o.weaverName || "N/A"}</td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs">{o.marka}</span>
+                      <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">{o.weaverChNo || "N/A"}</span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {safeFormat(o.weaverChDate || o.orderDate || o.createdAt, "dd MMM yyyy")}
                     </td>
                     <td className="px-4 py-3 text-center font-mono text-sm font-medium">{o.totalTaka}</td>
-                    <td className="px-4 py-3 text-center font-mono text-sm font-medium text-primary">{o.totalMeter.toFixed(1)}m</td>
+                    <td className="px-4 py-3 text-center font-mono text-sm font-medium text-primary">{o.totalMeter.toFixed(1)}</td>
                     <td className="px-4 py-3 text-center">
                       <Badge variant="outline" className={cn("text-[9px] font-bold uppercase h-5 px-2", STATUS_COLORS[o.status])}>
-                        {STATUS_LABELS[o.status]}
+                        {STATUS_LABELS[o.status] || o.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-center text-xs text-muted-foreground">
-                      {safeFormat(o.orderDate || o.createdAt, "dd MMM yyyy")}
-                    </td>
+
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button
@@ -306,7 +308,7 @@ export function OrderHistory() {
           <div className="px-4 py-3 border-t bg-muted/10 flex items-center justify-between text-xs text-muted-foreground">
             <span>{filtered.length} order{filtered.length !== 1 ? "s" : ""} found</span>
             <span className="font-medium">
-              Total: {filtered.reduce((s, o) => s + o.totalTaka, 0)} Taka · {filtered.reduce((s, o) => s + o.totalMeter, 0).toFixed(1)}m
+              Total: {filtered.reduce((s, o) => s + o.totalTaka, 0)} Taka · {filtered.reduce((s, o) => s + o.totalMeter, 0).toFixed(1)}
             </span>
           </div>
         </div>

@@ -35,14 +35,15 @@ import { cn } from "@/lib/utils";
 
 interface ChallanEntryProps {
   initialData?: any;
+  initialOrderId?: string;
   onSuccess?: () => void;
 }
 
-export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
+export function ChallanEntry({ initialData, initialOrderId, onSuccess }: ChallanEntryProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const qc = useQueryClient();
-  const orderId = searchParams.get("orderId");
+  const orderId = initialOrderId || searchParams.get("orderId");
   const editId = initialData?._id;
 
   const { data: ordersResponse } = useQuery({
@@ -242,39 +243,44 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
       const o = selectedOrder;
       const partySnap = o.partyDetails || {};
 
-      console.log("[ChallanEntry] Phase 1: filling text fields from order", {
-        firmId: o.firmId, firmName: o.firmName,
-        partyId: o.partyId, qualityId: o.qualityId,
-        weaverId: o.weaverId,
+      const safeId = (val: any) => val?._id?.toString() || val?.toString() || "";
+
+      const mapOrderToChallan = (order: any, snap: any) => ({
+        challan_no: order.partyChallanNo || order.partyChNo || "",
+        date: (order.orderDate || order.createdAt || new Date().toISOString()).split("T")[0],
+        challan_date: (order.orderDate || order.createdAt || new Date().toISOString()).split("T")[0],
+        firm: order.firmName || "",
+        firmId: safeId(order.firmId),
+        party: order.partyName || "",
+        partyId: safeId(order.partyId),
+        gstin_no: order.partyGstin || snap.gstin || order.gstin || "",
+        party_address: order.partyAddress || snap.address || order.address || "",
+        quality: order.qualityName || "",
+        qualityId: safeId(order.qualityId),
+        hsn_code: order.qualityDetails?.hsnCode || order.hsnCode || "",
+        item: order.qualityDetails?.itemDescription || order.itemDescription || "",
+        taka: order.totalTaka?.toString() || "",
+        meter: order.totalMeter?.toString() || "",
+        dyed_print: "",
+        weaver: order.weaverName || "",
+        weaverId: safeId(order.weaverId),
+        fas_rate: order.jobRate?.toString() || "",
+        amount: order.greyRate?.toString() || "",
+        weight: order.weight?.toString() || "",
+        total: order.totalTaka?.toString() || "",
+        chadhti: (order.chadti ?? order.chadhti ?? "").toString(),
+        width: order.width?.toString() || "",
+        pu_bill_no: order.weaverMarka || order.weaverChNo || "",
+        lr_no: order.lrNo || "",
+        lr_date: order.lrDate ? order.lrDate.split("T")[0] : "",
+        transpoter: order.transporterName || "",
+        transporterId: order.transporterId || "",
+        remark: order.brokerName ? `Broker: ${order.brokerName}` : "",
       });
 
       setForm((prev) => ({
         ...prev,
-        firm: o.firmName || "",
-        firmId: o.firmId || "",
-        party: o.partyName || "",
-        partyId: o.partyId || "",
-        challan_no: o.partyChallanNo || o.partyChNo || "",
-        gstin_no: o.partyGstin || partySnap.gstin || "",
-        party_address: o.partyAddress || partySnap.address || "",
-        quality: o.qualityName || "",
-        qualityId: o.qualityId || "",
-        hsn_code: o.qualityDetails?.hsnCode || "",
-        taka: o.totalTaka?.toString() || "",
-        meter: o.totalMeter?.toString() || "",
-        weaver: o.weaverName || "",
-        weaverId: o.weaverId || "",
-        fas_rate: o.jobRate?.toString() || "",
-        amount: o.greyRate?.toString() || "",
-        weight: o.weight?.toString() || "0",
-        width: o.width?.toString() || "0",
-        chadhti: (o.chadti ?? o.chadhti ?? 0).toString(),
-        pu_bill_no: o.weaverMarka || "",
-        lr_no: o.lrNo || "",
-        lr_date: o.lrDate ? o.lrDate.split("T")[0] : "",
-        transpoter: o.transporterName || "",
-        transporterId: o.transporterId || "",
-        remark: o.brokerName || "",
+        ...mapOrderToChallan(o, partySnap)
       }));
 
       if (o.takaDetails && o.takaDetails.length > 0) {
@@ -293,35 +299,59 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
     }
   }, [selectedOrder, selectedOrderId, editId]);
 
-  // ─── AUTO-FILL: Phase 2 — re-apply IDs when dropdown data loads ──────────
+  // ─── AUTO-FILL: Phase 2 — synchronize IDs when master lists load ──────────
   useEffect(() => {
     if (!selectedOrder || editId) return;
     const o = selectedOrder;
     const updates: Record<string, string> = {};
+    const safeId = (val: any) => val?._id?.toString() || val?.toString() || "";
 
-    if (o.firmId && mills.length > 0 && !form.firmId) {
-      updates.firmId = o.firmId;
-      updates.firm = o.firmName || "";
+    const cleanName = (n: any) => (n || "").toString().toLowerCase().trim();
+
+    // 1. Firm Match - ALWAYS FORCE JAI MATA DI
+    if (mills.length > 0) {
+      const FIXED_FIRM_GSTIN = "24AABCA9842L1ZG";
+      let match = mills.find((m) => m.gstin?.trim().toUpperCase() === FIXED_FIRM_GSTIN || cleanName(m.accountName).includes("jai mata di"));
+      if (!match) match = o.firmId ? mills.find(m => m._id === safeId(o.firmId)) : undefined;
+      if (!match && o.firmName) match = mills.find(m => cleanName(m.accountName) === cleanName(o.firmName));
+      if (match && form.firmId !== match._id) {
+        updates.firmId = match._id;
+        updates.firm = match.accountName;
+      }
     }
-    if (o.partyId && masterAccounts.length > 0 && !form.partyId) {
-      updates.partyId = o.partyId;
-      updates.party = o.partyName || "";
+
+    // 2. Party Match
+    if (masterAccounts.length > 0) {
+      let match = o.partyId ? masterAccounts.find(p => p._id === safeId(o.partyId)) : undefined;
+      if (!match && o.partyName) match = masterAccounts.find(p => cleanName(p.accountName) === cleanName(o.partyName));
+      if (match && form.partyId !== match._id) {
+        updates.partyId = match._id;
+        updates.party = match.accountName;
+      }
     }
-    if (o.qualityId && qualities?.length > 0 && !form.qualityId) {
-      updates.qualityId = o.qualityId;
-      updates.quality = o.qualityName || "";
+
+    // 3. Quality Match
+    if (qualities.length > 0) {
+      let match = o.qualityId ? qualities.find(q => q._id === safeId(o.qualityId)) : undefined;
+      if (!match && o.qualityName) match = qualities.find(q => cleanName(q.qualityName) === cleanName(o.qualityName));
+      if (match && form.qualityId !== match._id) {
+        updates.qualityId = match._id;
+        updates.quality = match.qualityName;
+        if (match.hsnCode && !form.hsn_code) updates.hsn_code = match.hsnCode;
+      }
     }
-    if (o.weaverId && allWeavers?.length > 0 && !form.weaverId) {
-      updates.weaverId = o.weaverId;
-      updates.weaver = o.weaverName || "";
-    }
-    if (o.transporterId && transporters.length > 0 && !form.transporterId) {
-      updates.transporterId = o.transporterId;
-      updates.transpoter = o.transporterName || "";
+
+    // 4. Weaver Match
+    if (allWeavers.length > 0) {
+      let match = o.weaverId ? allWeavers.find(w => w._id === safeId(o.weaverId)) : undefined;
+      if (!match && o.weaverName) match = allWeavers.find(w => cleanName(w.weaverName) === cleanName(o.weaverName));
+      if (match && form.weaverId !== match._id) {
+        updates.weaverId = match._id;
+        updates.weaver = match.weaverName;
+      }
     }
 
     if (Object.keys(updates).length > 0) {
-      console.log("[ChallanEntry] Phase 2: patching dropdown IDs", updates);
       setForm((prev) => ({ ...prev, ...updates }));
     }
   }, [selectedOrder, editId, mills, masterAccounts, qualities, allWeavers, transporters]);
@@ -416,7 +446,6 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                 <Select
                   value={selectedOrderId || undefined}
                   onValueChange={setSelectedOrderId}
-                  disabled={!!editId}
                 >
                   <SelectTrigger className="h-10 bg-background">
                     <SelectValue
@@ -469,8 +498,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         className="h-10"
                         value={form.date}
                         onChange={(e) => updateField("date", e.target.value)}
-                        required
-                      />
+                        required/>
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <Label className="text-xs font-bold uppercase text-muted-foreground">
@@ -505,6 +533,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Firm *
                       </Label>
                       <Select
+                        key={`firm-${mills.length}-${form.firmId}`}
                         value={form.firmId || undefined}
                         onValueChange={(v) => {
                           const m = mills.find((x) => x._id === v);
@@ -514,6 +543,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                             firm: m?.accountName || "",
                           }));
                         }}
+                        disabled
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Select Firm" />
@@ -532,6 +562,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Party *
                       </Label>
                       <Select
+                        key={`party-${masterAccounts.length}-${form.partyId}`}
                         value={form.partyId || undefined}
                         onValueChange={(v) => {
                           const p = masterAccounts.find((x) => x._id === v);
@@ -539,6 +570,8 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                             ...prev,
                             partyId: v,
                             party: p?.accountName || "",
+                            gstin_no: p?.gstin || prev.gstin_no,
+                            party_address: p?.address || prev.party_address,
                           }));
                         }}
                       >
@@ -597,6 +630,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Quality *
                       </Label>
                       <Select
+                        key={`quality-${qualities?.length}-${form.qualityId}`}
                         value={form.qualityId || (form.quality ? "CUSTOM" : undefined)}
                         onValueChange={(v) => {
                           if (v === "CUSTOM") return;
@@ -605,6 +639,11 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                             ...prev,
                             qualityId: v,
                             quality: q?.qualityName || "",
+                            hsn_code: q?.hsnCode || prev.hsn_code,
+                            item: q?.itemDescription || prev.item,
+                            fas_rate: q?.defaultJobRate?.toString() || prev.fas_rate,
+                            amount: q?.greyRate?.toString() || prev.amount,
+                            width: q?.width?.toString() || prev.width,
                           }));
                         }}
                       >
@@ -699,6 +738,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Weaver
                       </Label>
                       <Select
+                        key={`weaver-${allWeavers.length}-${form.weaverId}`}
                         value={form.weaverId || undefined}
                         onValueChange={(v) => {
                           const w = allWeavers?.find((x) => x._id === v);

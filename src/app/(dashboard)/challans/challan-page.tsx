@@ -62,14 +62,14 @@ export default function ChallanPageWrapper() {
 
   const handleSelectOrder = (orderId: string, orderData: any) => {
     // Navigate to new challan page with order ID
-    router.push(`/challans/new?orderId=${orderId}`);
+    router.push(`/challans/new/${orderId}`);
   };
 
   return (
     <div className="p-4 md:p-6 space-y-4 h-full flex flex-col overflow-scroll">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold">Mill Challans</h1>
+          <h1 className="text-2xl font-bold">Issue Party Challan</h1>
           <p className="text-sm text-muted-foreground">
             Manage and track delivery challans.
           </p>
