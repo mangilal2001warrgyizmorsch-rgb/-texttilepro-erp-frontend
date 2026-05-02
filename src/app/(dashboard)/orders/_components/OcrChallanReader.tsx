@@ -46,6 +46,7 @@ type Props = {
   autoSave?: boolean;
   onAutoSaveSuccess?: (orderIds: string[]) => void;
   variant?: "default" | "split";
+  onExtractingChange?: (extracting: boolean) => void;
 };
 
 export default function OcrChallanReader({
@@ -55,6 +56,7 @@ export default function OcrChallanReader({
   autoSave,
   onAutoSaveSuccess,
   variant = "default",
+  onExtractingChange,
 }: Props) {
   const extractChallan = useMutation(api.ocr.extract);
   const createBatch = useMutation(api.orders.createBatch);
@@ -98,6 +100,7 @@ export default function OcrChallanReader({
 
   const runOcr = async (file: File) => {
     setExtracting(true);
+    if (onExtractingChange) onExtractingChange(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -157,6 +160,7 @@ export default function OcrChallanReader({
       toast.error(e instanceof Error ? e.message : "OCR failed");
     } finally {
       setExtracting(false);
+      if (onExtractingChange) onExtractingChange(false);
     }
   };
 
@@ -178,13 +182,13 @@ export default function OcrChallanReader({
           firmId: c.firmId || "",
           firmName: c.firmName || c.firm || c.delivery_at || "",
           partyId: c.partyId || "",
-          partyName: c.partyName || c.party || "",
+          partyName: c.partyName || c.party || c.party_obj?.name || "",
           partyChNo: c.challanNo || c.challan_no || c.ch_no || "",
           marka: c.marka || c.mka || "",
           weaverId: c.weaverId || "",
-          weaverName: c.weaverName || c.weaver || "",
+          weaverName: c.weaverName || c.weaver || c.weaver_obj?.name || "",
           weaverChNo: c.weaverChNo || c.weaver_challan_no || "",
-          weaverMarka: c.weaverMarka || c.weaver_marka || c.mka || "",
+          weaverMarka: c.weaverMarka || c.weaver_marka || c.marka_help || c.mka || "",
           weaverChDate: c.chDate || c.challan_date || c.ch_date || "",
           qualityId: c.qualityId || "",
           qualityName: c.qualityName || c.quality || "",
@@ -202,13 +206,17 @@ export default function OcrChallanReader({
           transportName: c.transporterName || c.transporter || "",
           vehicleNo: c.vehicleNo || c.vehicle_no || "",
           driverMobile: c.driverMobile || c.driver_mobile || "",
-          gstin: c.gstin || c.gstin_no || "",
-          address: c.address || c.party_address || "",
-          partyGstin: c.partyGstin || c.gstin || c.gstin_no || "",
-          partyAddress: c.partyAddress || c.address || c.party_address || "",
-          weaverGstin: c.weaverGstin || "",
-          weaverAddress: c.weaverAddress || "",
+          gstin: c.gstin || c.gstin_no || c.party_obj?.gstin_no || "",
+          address: c.address || c.party_address || c.party_obj?.address || "",
+          partyGstin: c.partyGstin || c.gstin || c.gstin_no || c.party_obj?.gstin_no || "",
+          partyAddress: c.partyAddress || c.address || c.party_address || c.party_obj?.address || "",
+          weaverGstin: c.weaverGstin || c.weaver_obj?.gstin_no || "",
+          weaverAddress: c.weaverAddress || c.weaver_obj?.address || "",
           brokerName: c.broker || c.agent || "",
+          // Pass through master detail snapshots from backend OCR resolution
+          firmDetails: c.firmDetails || undefined,
+          partyDetails: c.partyDetails || undefined,
+          weaverDetails: c.weaverDetails || undefined,
           takaDetails: (c.takaRows || c.table || []).map((r: any) => ({
             takaNo: (r.takaNo || r.tn || "").toString(),
             marka: (r.marka || r.mka || "").toString(),

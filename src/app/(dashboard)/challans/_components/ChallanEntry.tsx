@@ -92,16 +92,35 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
     [weaversData],
   );
 
-  const mills = (accounts ?? []).filter(
+  const mills = useMemo(() => (accounts ?? []).filter(
     (a) => a.roleType === "Mill" && a.isActive,
-  );
-  const masterAccounts = (accounts ?? []).filter(
+  ), [accounts]);
+  
+  const masterAccounts = useMemo(() => (accounts ?? []).filter(
     (a) =>
       ["Master", "Customer", "Supplier"].includes(a.roleType) && a.isActive,
-  );
-  const transporters = (accounts ?? []).filter(
+  ), [accounts]);
+  
+  const transporters = useMemo(() => (accounts ?? []).filter(
     (a) => a.roleType === "Transporter" && a.isActive,
-  );
+  ), [accounts]);
+  
+  // Weavers come from both the Weaver collection AND Account collection (roleType: "Weaver")
+  const weaverAccounts = useMemo(() => (accounts ?? []).filter(
+    (a) => a.roleType === "Weaver",
+  ), [accounts]);
+  // Merge: Account weavers (mapped to match Weaver shape) + Weaver collection entries
+  const allWeavers = useMemo(() => {
+    const fromAccounts = weaverAccounts.map((a) => ({
+      _id: a._id,
+      weaverName: a.accountName,
+      _source: "account",
+    }));
+    const fromWeavers = (weavers ?? []).filter(
+      (w: any) => !fromAccounts.some((a) => a._id === w._id),
+    );
+    return [...fromAccounts, ...fromWeavers];
+  }, [weaverAccounts, weavers]);
 
   const today = new Date().toISOString().split("T")[0];
   const [selectedOrderId, setSelectedOrderId] = useState<string>(
@@ -216,54 +235,107 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
     (o: any) => o._id === selectedOrderId,
   );
 
-  // Auto-fill when order is selected (only if not editing)
+  // ─── AUTO-FILL: Phase 1 — text fields immediately when order loads ────────
+  const textFieldsApplied = useRef<string | null>(null);
   useEffect(() => {
-    if (
-      selectedOrder &&
-      !editId &&
-      hasInitialized.current !== selectedOrderId
-    ) {
+    if (selectedOrder && !editId && textFieldsApplied.current !== selectedOrderId) {
+      const o = selectedOrder;
+      const partySnap = o.partyDetails || {};
+
+      console.log("[ChallanEntry] Phase 1: filling text fields from order", {
+        firmId: o.firmId, firmName: o.firmName,
+        partyId: o.partyId, qualityId: o.qualityId,
+        weaverId: o.weaverId,
+      });
+
       setForm((prev) => ({
         ...prev,
-        firm: selectedOrder.firmName || "",
-        firmId: selectedOrder.firmId || "",
-        party: selectedOrder.partyName || "",
-        partyId: selectedOrder.partyId || "",
-        challan_no:
-          selectedOrder.partyChallanNo || selectedOrder.partyChNo || "",
-        gstin_no: selectedOrder.gstin || "",
-        party_address:
-          selectedOrder.address || selectedOrder.partyAddress || "",
-        quality: selectedOrder.qualityName || "",
-        qualityId: selectedOrder.qualityId || "",
-        hsn_code: selectedOrder.hsnCode || selectedOrder.hsn || "",
-        taka: selectedOrder.totalTaka?.toString() || "",
-        meter: selectedOrder.totalMeter?.toString() || "",
-        weaver: selectedOrder.weaverName || "",
-        weaverId: selectedOrder.weaverId || "",
-        weight: selectedOrder.weight?.toString() || "0",
-        width: selectedOrder.width?.toString() || "0",
-        chadhti: (
-          selectedOrder.chadhti ??
-          selectedOrder.chadti ??
-          0
-        ).toString(),
-        lr_no: selectedOrder.lrNo || "",
-        lr_date: selectedOrder.lrDate || "",
-        transpoter: selectedOrder.transporterName || "",
-        transporterId: selectedOrder.transporterId || "",
+        firm: o.firmName || "",
+        firmId: o.firmId || "",
+        party: o.partyName || "",
+        partyId: o.partyId || "",
+        challan_no: o.partyChallanNo || o.partyChNo || "",
+        gstin_no: o.partyGstin || partySnap.gstin || "",
+        party_address: o.partyAddress || partySnap.address || "",
+        quality: o.qualityName || "",
+        qualityId: o.qualityId || "",
+        hsn_code: o.qualityDetails?.hsnCode || "",
+        taka: o.totalTaka?.toString() || "",
+        meter: o.totalMeter?.toString() || "",
+        weaver: o.weaverName || "",
+        weaverId: o.weaverId || "",
+        fas_rate: o.jobRate?.toString() || "",
+        amount: o.greyRate?.toString() || "",
+        weight: o.weight?.toString() || "0",
+        width: o.width?.toString() || "0",
+        chadhti: (o.chadti ?? o.chadhti ?? 0).toString(),
+        pu_bill_no: o.weaverMarka || "",
+        lr_no: o.lrNo || "",
+        lr_date: o.lrDate ? o.lrDate.split("T")[0] : "",
+        transpoter: o.transporterName || "",
+        transporterId: o.transporterId || "",
+        remark: o.brokerName || "",
       }));
 
-      setTable(
-        (selectedOrder.takaDetails || []).map((row: any) => ({
-          tn: row.takaNo?.toString() ?? "",
-          meter: (row.meter ?? "").toString(),
-        })),
-      );
+      if (o.takaDetails && o.takaDetails.length > 0) {
+        setTable(
+          o.takaDetails.map((row: any) => ({
+            tn: row.takaNo?.toString() ?? "",
+            meter: (row.meter ?? "").toString(),
+          })),
+        );
+      }
 
+      textFieldsApplied.current = selectedOrderId;
       hasInitialized.current = selectedOrderId;
+
+      toast.success("✅ Order data auto-filled", { duration: 3000 });
     }
   }, [selectedOrder, selectedOrderId, editId]);
+
+  // ─── AUTO-FILL: Phase 2 — re-apply IDs when dropdown data loads ──────────
+  useEffect(() => {
+    if (!selectedOrder || editId) return;
+    const o = selectedOrder;
+    const updates: Record<string, string> = {};
+
+    if (o.firmId && mills.length > 0 && !form.firmId) {
+      updates.firmId = o.firmId;
+      updates.firm = o.firmName || "";
+    }
+    if (o.partyId && masterAccounts.length > 0 && !form.partyId) {
+      updates.partyId = o.partyId;
+      updates.party = o.partyName || "";
+    }
+    if (o.qualityId && qualities?.length > 0 && !form.qualityId) {
+      updates.qualityId = o.qualityId;
+      updates.quality = o.qualityName || "";
+    }
+    if (o.weaverId && allWeavers?.length > 0 && !form.weaverId) {
+      updates.weaverId = o.weaverId;
+      updates.weaver = o.weaverName || "";
+    }
+    if (o.transporterId && transporters.length > 0 && !form.transporterId) {
+      updates.transporterId = o.transporterId;
+      updates.transpoter = o.transporterName || "";
+    }
+
+    if (Object.keys(updates).length > 0) {
+      console.log("[ChallanEntry] Phase 2: patching dropdown IDs", updates);
+      setForm((prev) => ({ ...prev, ...updates }));
+    }
+  }, [selectedOrder, editId, mills, masterAccounts, qualities, allWeavers, transporters]);
+
+  // Sync taka table totals → form fields automatically
+  useEffect(() => {
+    if (table.length > 0) {
+      setForm((prev) => ({
+        ...prev,
+        taka: totalTakaCount.toString(),
+        meter: totalMeterValue.toFixed(2).replace(/\.00$/, ""),
+      }));
+    }
+  }, [totalTakaCount, totalMeterValue, table.length]);
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -294,7 +366,13 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
       const payload = {
         ...form,
         total: finalTotal,
-        orderId: selectedOrderId || initialData?.orderId,
+        orderId: selectedOrderId || initialData?.orderId || undefined,
+        // Sanitize empty ObjectId strings to undefined
+        firmId: form.firmId || undefined,
+        partyId: form.partyId || undefined,
+        qualityId: form.qualityId === "CUSTOM" ? undefined : (form.qualityId || undefined),
+        weaverId: form.weaverId || undefined,
+        transporterId: form.transporterId || undefined,
         table: table.map((row) => ({
           tn: row.tn?.trim() ? Number(row.tn) : undefined,
           meter: row.meter,
@@ -336,7 +414,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
             <CardContent className="p-4">
               <div className="max-w-md">
                 <Select
-                  value={selectedOrderId}
+                  value={selectedOrderId || undefined}
                   onValueChange={setSelectedOrderId}
                   disabled={!!editId}
                 >
@@ -427,7 +505,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Firm *
                       </Label>
                       <Select
-                        value={form.firmId}
+                        value={form.firmId || undefined}
                         onValueChange={(v) => {
                           const m = mills.find((x) => x._id === v);
                           setForm((prev) => ({
@@ -454,7 +532,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Party *
                       </Label>
                       <Select
-                        value={form.partyId}
+                        value={form.partyId || undefined}
                         onValueChange={(v) => {
                           const p = masterAccounts.find((x) => x._id === v);
                           setForm((prev) => ({
@@ -495,7 +573,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                       </Label>
                       <Input
                         className="h-10"
-                        placeholder="akola"
+                        placeholder="Enter Address"
                         value={form.party_address}
                         onChange={(e) =>
                           updateField("party_address", e.target.value)
@@ -519,8 +597,9 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Quality *
                       </Label>
                       <Select
-                        value={form.qualityId}
+                        value={form.qualityId || (form.quality ? "CUSTOM" : undefined)}
                         onValueChange={(v) => {
+                          if (v === "CUSTOM") return;
                           const q = qualities?.find((x) => x._id === v);
                           setForm((prev) => ({
                             ...prev,
@@ -538,6 +617,11 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                               {q.qualityName}
                             </SelectItem>
                           ))}
+                          {!form.qualityId && form.quality && (
+                            <SelectItem value="CUSTOM">
+                              {form.quality} (from Order)
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -597,7 +681,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Dyed / Print
                       </Label>
                       <Select
-                        value={form.dyed_print}
+                        value={form.dyed_print || undefined}
                         onValueChange={(v) => updateField("dyed_print", v)}
                       >
                         <SelectTrigger className="h-10">
@@ -615,9 +699,9 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Weaver
                       </Label>
                       <Select
-                        value={form.weaverId}
+                        value={form.weaverId || undefined}
                         onValueChange={(v) => {
-                          const w = weavers?.find((x) => x._id === v);
+                          const w = allWeavers?.find((x) => x._id === v);
                           setForm((prev) => ({
                             ...prev,
                             weaverId: v,
@@ -629,7 +713,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                           <SelectValue placeholder="Select Weaver" />
                         </SelectTrigger>
                         <SelectContent>
-                          {weavers?.map((w: any) => (
+                          {allWeavers?.map((w: any) => (
                             <SelectItem key={w._id} value={w._id}>
                               {w.weaverName}
                             </SelectItem>
@@ -783,7 +867,7 @@ export function ChallanEntry({ initialData, onSuccess }: ChallanEntryProps) {
                         Transporter
                       </Label>
                       <Select
-                        value={form.transporterId}
+                        value={form.transporterId || undefined}
                         onValueChange={(v) => {
                           const t = transporters.find((x) => x._id === v);
                           setForm((prev) => ({

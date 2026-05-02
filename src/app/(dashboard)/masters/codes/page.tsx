@@ -288,7 +288,7 @@ export default function CodesPage() {
           <div className="space-y-4 mt-2">
             <div className="space-y-1.5">
               <Label>Account (Customer) *</Label>
-              <Select value={form.accountId} onValueChange={handleAccountSelect} disabled={!!editId}>
+              <Select value={form.accountId || undefined} onValueChange={handleAccountSelect} disabled={!!editId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select account..." />
                 </SelectTrigger>

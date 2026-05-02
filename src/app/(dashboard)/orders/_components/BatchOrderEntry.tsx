@@ -43,12 +43,43 @@ type TakaRow = {
   weight: string;
 };
 
+// Snapshot of master record details embedded in order
+type MasterDetail = {
+  name: string;
+  gstin: string;
+  panNo: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  mobileNo: string;
+  email: string;
+  gstType: string;
+  clientCode: string;
+};
+
+const emptyMasterDetail = (): MasterDetail => ({
+  name: "",
+  gstin: "",
+  panNo: "",
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
+  mobileNo: "",
+  email: "",
+  gstType: "",
+  clientCode: "",
+});
+
 type OrderForm = {
   orderDate: string;
   firmId: string;
   firmName: string;
+  firmDetails: MasterDetail;
   partyId: string;
   partyName: string;
+  partyDetails: MasterDetail;
   codeMasterId: string;
   partyChNo: string;
   marka: string;
@@ -58,8 +89,11 @@ type OrderForm = {
   weaverMarka: string;
   weaverGstin: string;
   weaverAddress: string;
+  weaverDetails: MasterDetail;
   qualityId: string;
   qualityName: string;
+  hsnCode: string;
+  itemDescription: string;
   width: string;
   weight: string;
   length: string;
@@ -72,8 +106,8 @@ type OrderForm = {
   lrNo: string;
   lrDate: string;
   transporterName: string;
-  gstin: string; // Left for backwards compatibility, use partyGstin
-  address: string; // Left for backwards compatibility, use partyAddress
+  gstin: string;
+  address: string;
   partyGstin: string;
   partyAddress: string;
   brokerName: string;
@@ -86,8 +120,10 @@ const emptyOrder = (): OrderForm => ({
   orderDate: new Date().toISOString().split("T")[0],
   firmId: "",
   firmName: "",
+  firmDetails: emptyMasterDetail(),
   partyId: "",
   partyName: "",
+  partyDetails: emptyMasterDetail(),
   codeMasterId: "",
   partyChNo: "",
   marka: "",
@@ -97,8 +133,11 @@ const emptyOrder = (): OrderForm => ({
   weaverMarka: "",
   weaverGstin: "",
   weaverAddress: "",
+  weaverDetails: emptyMasterDetail(),
   qualityId: "",
   qualityName: "",
+  hsnCode: "",
+  itemDescription: "",
   width: "",
   weight: "",
   length: "",
@@ -119,6 +158,21 @@ const emptyOrder = (): OrderForm => ({
   vehicleNo: "",
   driverMobile: "",
   takaDetails: [{ takaNo: "", marka: "", meter: "", weight: "" }],
+});
+
+// Helper: build a MasterDetail from a loaded account record
+const buildSnapshot = (acc: any): MasterDetail => ({
+  name: acc?.accountName || acc?.weaverName || "",
+  gstin: acc?.gstin || "",
+  panNo: acc?.panNo || "",
+  address: acc?.address || "",
+  city: acc?.city || "",
+  state: acc?.state || "",
+  pincode: acc?.pincode || "",
+  mobileNo: acc?.mobileNo || "",
+  email: acc?.email || "",
+  gstType: acc?.gstType || "",
+  clientCode: acc?.clientCode || acc?.weaverCode || "",
 });
 
 interface BatchOrderEntryProps {
@@ -188,6 +242,7 @@ export function BatchOrderEntry({
   const [loading, setLoading] = useState(false);
   const [syncCommonFields, setSyncCommonFields] = useState(true);
   const [showOcr, setShowOcr] = useState(false);
+  const [isOcrExtracting, setIsOcrExtracting] = useState(false);
   const [ocrAutoCamera, setOcrAutoCamera] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
@@ -517,30 +572,37 @@ export function BatchOrderEntry({
         // ── 1. FIRM: Always fixed ────────────────────────────────────
         const firmId = fixedFirmId;
         const firmName = FIXED_FIRM_NAME;
+        // Build firm snapshot from loaded mills list
+        const firmAccount = mills.find((m) => m._id === firmId);
+        const firmDetails: MasterDetail = firmAccount
+          ? buildSnapshot(firmAccount)
+          : (c.firmDetails || emptyMasterDetail());
 
         // ── 2. PARTY: Match by GSTIN (priority) → backend partyId → name ─
         const partyGstin = c.party_obj?.gstin_no || c.gstin_no || "";
         let partyId = "";
         let partyName = "";
-        let partyAddress = "";
+        let partyAddress = c.party_obj?.address || "";
         let partyGstinValue = "";
+        let partyDetails: MasterDetail = c.partyDetails || emptyMasterDetail();
 
         // Priority 1: GSTIN match against frontend master data
         const partyByGst = matchPartyByGstin(partyGstin);
         if (partyByGst) {
           partyId = partyByGst._id;
           partyName = partyByGst.accountName || "";
-          partyAddress = partyByGst.address || "";
+          partyAddress = partyByGst.address || partyAddress;
           partyGstinValue = partyByGst.gstin || "";
+          partyDetails = buildSnapshot(partyByGst);
         }
         // Priority 2: Backend already resolved partyId
         else if (c.partyId) {
           partyId = c.partyId;
-          partyName = c.partyName || c.party || "";
+          partyName = c.partyName || c.party || c.party_obj?.name || "";
         }
         // Priority 3: Name-based match
         else {
-          const nameToMatch = (c.partyName || c.party || "").trim().toLowerCase();
+          const nameToMatch = (c.partyName || c.party || c.party_obj?.name || "").trim().toLowerCase();
           if (nameToMatch) {
             const match = masterAccounts.find(
               (a) => a.accountName?.trim().toLowerCase() === nameToMatch,
@@ -548,8 +610,9 @@ export function BatchOrderEntry({
             if (match) {
               partyId = match._id;
               partyName = match.accountName || "";
-              partyAddress = match.address || "";
+              partyAddress = match.address || partyAddress;
               partyGstinValue = match.gstin || "";
+              partyDetails = buildSnapshot(match);
             }
           }
         }
@@ -559,8 +622,8 @@ export function BatchOrderEntry({
           toast.error(`Customer not found in master database for GST: ${cleanGST(partyGstin)}`, {
             duration: 6000,
           });
-        } else if (!partyId && (c.party || c.partyName)) {
-          toast.error(`Customer "${c.party || c.partyName}" not found in master database`, {
+        } else if (!partyId && (c.party || c.partyName || c.party_obj?.name)) {
+          toast.error(`Customer "${c.party || c.partyName || c.party_obj?.name}" not found in master database`, {
             duration: 5000,
           });
         }
@@ -571,6 +634,7 @@ export function BatchOrderEntry({
         let weaverName = "";
         let weaverGstinValue = "";
         let weaverAddressValue = c.weaver_obj?.address || "";
+        let weaverDetails: MasterDetail = c.weaverDetails || emptyMasterDetail();
 
         // Priority 1: GSTIN match
         const weaverByGst = matchWeaverByGstin(weaverGstin);
@@ -579,11 +643,12 @@ export function BatchOrderEntry({
           weaverName = weaverByGst.weaverName || weaverByGst.accountName || "";
           weaverGstinValue = weaverByGst.gstin || weaverGstin;
           weaverAddressValue = weaverByGst.address || weaverAddressValue;
+          weaverDetails = buildSnapshot(weaverByGst);
         }
         // Priority 2: Backend already resolved weaverId
         else if (c.weaverId) {
           weaverId = c.weaverId;
-          weaverName = c.weaverName || c.weaver || "";
+          weaverName = c.weaverName || c.weaver || c.weaver_obj?.name || "";
         }
         // Priority 3: Name-based match
         else {
@@ -597,6 +662,7 @@ export function BatchOrderEntry({
               weaverName = match.weaverName || "";
               weaverGstinValue = match.gstin || weaverGstin;
               weaverAddressValue = match.address || weaverAddressValue;
+              weaverDetails = buildSnapshot(match);
             }
           }
         }
@@ -612,17 +678,31 @@ export function BatchOrderEntry({
           });
         }
 
-        // ── 4. QUALITY: backend qualityId → local name match ──────────
+        // ── 4. QUALITY: DB match (by name) → use DB fields; else OCR ──────
         let qualityId = c.qualityId || "";
         let qualityName2 = c.qualityName || c.quality || "";
-        if (!qualityId) {
+        let qualityHsnCode = c.hsnCode || "";
+        let qualityItemDesc = c.itemDescription || "";
+        let qualityWidth = (c.width || "").toString();
+        let qualityJobRate = (c.jobRate || "").toString();
+        let qualityGreyRate = (c.greyRate || "").toString();
+
+        if (!qualityId && qualityName2) {
+          const normalizeQualityName = (v: string = "") => v.trim().toUpperCase().replace(/[-_/]/g, " ").replace(/\s+/g, " ");
+          const normalizedScanned = normalizeQualityName(qualityName2);
+          
           const qMatch = qualities?.find(
-            (q) =>
-              q.qualityName?.toLowerCase() === qualityName2.toLowerCase(),
+            (q) => (q.normalizedName || normalizeQualityName(q.qualityName)) === normalizedScanned,
           );
           if (qMatch) {
             qualityId = qMatch._id;
             qualityName2 = qMatch.qualityName;
+            // Use DB master values for quality-specific fields (DB > OCR)
+            if (qMatch.hsnCode) qualityHsnCode = qMatch.hsnCode;
+            if (qMatch.itemDescription) qualityItemDesc = qMatch.itemDescription;
+            if (qMatch.width) qualityWidth = qMatch.width.toString();
+            if ((qMatch as any).defaultJobRate) qualityJobRate = (qMatch as any).defaultJobRate.toString();
+            if (qMatch.greyRate) qualityGreyRate = qMatch.greyRate.toString();
           }
         }
 
@@ -638,25 +718,32 @@ export function BatchOrderEntry({
           orderDate: todayDate,
           firmId: firmId,
           firmName: firmName,
+          firmDetails: firmDetails,
           partyId: partyId,
-          partyName: partyName || c.partyName || c.party || "",
+          partyName: partyName || c.partyName || c.party || c.party_obj?.name || "",
+          partyDetails: partyDetails,
           codeMasterId: cmId,
           partyChNo: c.partyChNo || c.challanNo || c.challan_no || "",
           marka: defaultMarka || c.mka || "",
           weaverId: weaverId,
-          weaverName: weaverName || c.weaverName || c.weaver || "",
-          weaverChNo: c.weaverChNo || c.weaver_challan_no || "",
-          weaverMarka: c.weaverMarka || c.weaver_marka || "",
+          weaverName: weaverName || c.weaverName || c.weaver || c.weaver_obj?.name || "",
+          weaverChNo: c.weaverChNo || c.weaver_challan_no || c.challan_no || "",
+          weaverMarka: c.weaverMarka || c.weaver_marka || c.marka_help || "",
           weaverGstin: weaverGstinValue || c.weaverGstin || weaverGstin,
           weaverAddress: weaverAddressValue || c.weaverAddress || "",
+          weaverDetails: weaverDetails,
           qualityId: qualityId,
           qualityName: qualityName2,
-          width: (c.width || "").toString(),
+          hsnCode: qualityHsnCode,
+          itemDescription: qualityItemDesc,
+          width: qualityWidth,
           weight: (c.weight || "").toString(),
           length: (c.length || "").toString(),
           chadhti: (c.chadhti || c.chadti || "").toString(),
           totalTaka: (c.totalTaka || c.takaCount || c.taka || "").toString(),
           totalMeter: (c.totalMeter || c.meter || "").toString(),
+          jobRate: qualityJobRate,
+          greyRate: qualityGreyRate,
           lrNo: c.lrNo || c.lr_no || "",
           lrDate: c.lrDate || c.lr_date || todayDate,
           transporterName: c.transporterName || c.transpoter || c.transporter || "",
@@ -743,6 +830,10 @@ export function BatchOrderEntry({
     try {
       const payload = orders.map((o) => ({
         ...o,
+        qualityId: o.qualityId === "CUSTOM" || o.qualityId === "" ? undefined : o.qualityId,
+        partyId: o.partyId === "" ? undefined : o.partyId,
+        weaverId: o.weaverId === "" ? undefined : o.weaverId,
+        codeMasterId: o.codeMasterId === "" ? undefined : o.codeMasterId,
         totalTaka: Number(o.totalTaka),
         totalMeter: Number(o.totalMeter),
         width: Number(o.width) || 0,
@@ -865,6 +956,7 @@ export function BatchOrderEntry({
               onFill={(res) => {
                 handleOcrFill(res);
               }}
+              onExtractingChange={(isExt) => setIsOcrExtracting(isExt)}
               onClose={() => setShowOcr(false)}
             />
           </div>
@@ -872,9 +964,18 @@ export function BatchOrderEntry({
 
         {/* Right Side: Form Content */}
         <div className={cn(
-          "space-y-6",
+          "space-y-6 relative",
           showOcr ? "lg:col-span-1" : "lg:col-span-12"
         )}>
+          {isOcrExtracting && (
+            <div className="absolute inset-0 z-50 bg-background/50 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl border border-border">
+              <Loader2 className="w-10 h-10 text-primary animate-spin mb-4" />
+              <p className="text-lg font-bold text-foreground">Extracting Data...</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-sm text-center">
+                Please wait while we extract order details and match them with your master database.
+              </p>
+            </div>
+          )}
           <div className={cn(
             "grid grid-cols-1 gap-6 items-start",
             showOcr ? "grid-cols-1" : "lg:grid-cols-12"
@@ -985,7 +1086,7 @@ export function BatchOrderEntry({
                   Firm Name (Mill) *
                 </Label>
                 <Select
-                  value={form.firmId}
+                  value={form.firmId || undefined}
                   onValueChange={(v) => {
                     const m = mills.find((x) => x._id === v);
                     updateOrderObject({
@@ -1011,7 +1112,7 @@ export function BatchOrderEntry({
                   Party Name
                 </Label>
                 <Select
-                  value={form.partyId}
+                  value={form.partyId || undefined}
                   onValueChange={(v) => {
                     const p = masterAccounts.find((x) => x._id === v);
                     updateOrderObject({
@@ -1037,7 +1138,7 @@ export function BatchOrderEntry({
                   Code Master
                 </Label>
                 <Select
-                  value={form.codeMasterId}
+                  value={form.codeMasterId || undefined}
                   onValueChange={(v) => {
                     const cm = (codeMaster as any[])?.find((x: any) => x._id === v);
                     updateOrderObject({
@@ -1108,7 +1209,7 @@ export function BatchOrderEntry({
                   Weaver Name
                 </Label>
                 <Select
-                  value={form.weaverId}
+                  value={form.weaverId || undefined}
                   onValueChange={(v) => {
                     const w = weavers?.find((x) => x._id === v);
                     updateOrderObject({
@@ -1152,29 +1253,35 @@ export function BatchOrderEntry({
             </CardContent>
           </Card>
 
-          {/* Fabric Details */}
+          {/* Quality Details */}
           <Card className="shadow-sm">
             <CardHeader className="pb-3 border-b bg-muted/10">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Package size={16} className="text-primary" /> Fabric Details
+                <Package size={16} className="text-primary" /> Quality Details
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">
                   Quality Name *
                 </Label>
                 <Select
-                  value={form.qualityId}
+                  value={form.qualityId || (form.qualityName ? "CUSTOM" : undefined)}
                   onValueChange={(v) => {
+                    if (v === "CUSTOM") return;
                     const q = qualities?.find((x) => x._id === v);
                     updateOrderObject({
                       qualityId: v,
                       qualityName: q?.qualityName || "",
+                      hsnCode: q?.hsnCode || form.hsnCode || "",
+                      itemDescription: q?.itemDescription || form.itemDescription || "",
+                      width: q?.width ? String(q.width) : form.width,
+                      jobRate: q?.defaultJobRate ? String(q.defaultJobRate) : form.jobRate,
+                      greyRate: q?.greyRate ? String(q.greyRate) : form.greyRate,
                     });
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10">
                     <SelectValue placeholder="Select quality..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -1183,9 +1290,55 @@ export function BatchOrderEntry({
                         {q.qualityName}
                       </SelectItem>
                     ))}
+                    {!form.qualityId && form.qualityName && (
+                      <SelectItem value="CUSTOM">
+                        {form.qualityName} (OCR)
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
+                {form.qualityName && !form.qualityId && (
+                  <p className="text-[10px] text-amber-500 font-medium flex items-center gap-1">
+                    <Plus size={10} /> New quality will auto-save to master
+                  </p>
+                )}
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  HSN Code
+                </Label>
+                <Input
+                  value={form.hsnCode}
+                  onChange={(e) => updateField("hsnCode", e.target.value)}
+                  placeholder="e.g. 540710"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Item Description
+                </Label>
+                <Input
+                  value={form.itemDescription}
+                  onChange={(e) =>
+                    updateField("itemDescription", e.target.value)
+                  }
+                  placeholder="Optional description"
+                  className="h-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Fabric Measurements */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3 border-b bg-muted/10">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Scissors size={16} className="text-primary" /> Fabric
+                Measurements
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">
                   Width (inches)
