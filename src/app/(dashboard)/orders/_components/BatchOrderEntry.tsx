@@ -355,15 +355,14 @@ export function BatchOrderEntry({
     return cm?.masterName || cm?.accountName || "Unknown";
   };
 
-  // Helper: resolve code master from OCR marka string
-  // Returns { cmId, defaultMarka } — always falls back to latest (index 0)
-  const resolveCodeMaster = (ocrMarkaRaw: string, ocrMasterName?: string) => {
+  const resolveCodeMaster = (ocrMarkaRaw: string, ocrMasterName?: string, partyId?: string) => {
     const ocrMarka = (ocrMarkaRaw || "").trim().toLowerCase();
+    const cms = Array.isArray(codeMaster) ? (codeMaster as any[]) : [];
 
-    // Only attempt match if marka is meaningful (length > 3 avoids "TES" from "TEXTILES")
+    // 1. Try exact match by marka or masterName
     const matchingCm =
       ocrMarka.length > 3
-        ? (codeMaster as any[])?.find(
+        ? cms.find(
             (cm: any) =>
               cm.marka?.trim().toLowerCase() === ocrMarka ||
               cm.masterName?.trim().toLowerCase() ===
@@ -371,23 +370,27 @@ export function BatchOrderEntry({
           )
         : undefined;
 
-    // If no match, fall back to latest added code master (index 0)
-    const fallbackCm =
-      !matchingCm && Array.isArray(codeMaster) && codeMaster.length > 0
-        ? (codeMaster as any[])[0]
-        : undefined;
+    // 2. If no exact match, try to find the latest master for this SPECIFIC party
+    const partySpecificLatest = (!matchingCm && partyId)
+      ? cms.find(cm => cm.accountId === partyId) // List is already sorted by createdAt: -1
+      : undefined;
 
-    const cmId = matchingCm?._id || fallbackCm?._id || "";
+    // 3. Fallback to absolute latest (if absolutely necessary, but we'll handle the error in the caller)
+    const fallbackCm = matchingCm || partySpecificLatest;
+
+    const cmId = fallbackCm?._id || "";
     const defaultMarka =
-      matchingCm?.marka ||
-      matchingCm?.clientCode ||
-      matchingCm?.code ||
       fallbackCm?.marka ||
       fallbackCm?.clientCode ||
       fallbackCm?.code ||
       "";
 
-    return { cmId, defaultMarka };
+    return { 
+      cmId, 
+      defaultMarka, 
+      found: !!matchingCm, 
+      partyMatched: !!partySpecificLatest 
+    };
   };
 
   const [lastPartyId, setLastPartyId] = useState<string | null>(null);
@@ -731,10 +734,17 @@ export function BatchOrderEntry({
         }
 
         // ── 5. CODE MASTER ────────────────────────────────────────────
-        const { cmId, defaultMarka } = resolveCodeMaster(
+        const { cmId, defaultMarka, found, partyMatched } = resolveCodeMaster(
           c.marka || c.mka || "",
           c.masterName || "",
+          partyId
         );
+
+        if (!cmId && partyId) {
+          toast.error(`Customer "${partyName || c.party || c.partyName}" has no Master (Broker) linked in Code Master`, {
+            duration: 6000,
+          });
+        }
 
         const todayDate = new Date().toISOString().split("T")[0];
 

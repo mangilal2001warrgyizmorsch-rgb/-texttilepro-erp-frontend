@@ -20,6 +20,10 @@ import {
   Eye,
   RefreshCw,
   Save,
+  Copy,
+  ChevronDown,
+  ChevronUp,
+  FileJson,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +78,7 @@ export default function OcrChallanReader({
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [enableAutoSave, setEnableAutoSave] = useState(autoSave ?? false);
   const [savedOrderIds, setSavedOrderIds] = useState<string[]>([]);
+  const [showJson, setShowJson] = useState(false);
 
   // Initialize previewUrl from initialFileUrl if provided
   const [previewUrl, setPreviewUrl] = useState<string | null>(() => {
@@ -522,7 +527,65 @@ export default function OcrChallanReader({
               >
                 <Upload size={13} /> New File
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowJson(!showJson)}
+                className="ml-auto gap-1"
+              >
+                {showJson ? <ChevronUp size={13} /> : <FileJson size={13} />}
+                {showJson ? "Hide Data" : "View Structured Data"}
+              </Button>
             </div>
+
+            {showJson && (
+              <div className="mt-4 p-4 bg-background border rounded-lg overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between mb-3 border-b pb-2">
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <FileJson size={14} className="text-primary" />
+                    Extracted Data Fields
+                  </h4>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(ocrResult, null, 2));
+                      toast.success("JSON copied to clipboard");
+                    }}
+                    className="h-7 text-[10px] font-bold uppercase tracking-wider"
+                  >
+                    <Copy size={10} className="mr-1" /> Copy JSON
+                  </Button>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-1.5 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  {Object.entries(ocrResult).map(([key, value]) => {
+                    if (key === "takaRows" || key === "unmatchedFields" || key === "confidence") return null;
+                    if (typeof value !== "string" && typeof value !== "number") return null;
+                    
+                    return (
+                      <div key={key} className="flex items-center justify-between p-2 rounded bg-muted/50 hover:bg-muted transition-colors group">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                          <span className="text-xs font-semibold">{value || "—"}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => {
+                            navigator.clipboard.writeText(String(value));
+                            toast.success(`${key} copied`);
+                          }}
+                        >
+                          <Copy size={12} />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

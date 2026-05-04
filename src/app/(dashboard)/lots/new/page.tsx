@@ -192,15 +192,14 @@ export default function NewLotPage() {
       )[0],
       party:
         challan.party ||
-        challan.marka ||
-        order?.marka ||
+        order?.partyName ||
         firmAccount?.name ||
         "",
-      marka: challan.marka || challan.party || order?.marka || "",
+      marka: challan.marka || order?.marka || "",
       gstinNo: firmAccount?.gstin || challan.gstin_no || order?.gstin || "",
       address:
         firmAccount?.address || challan.address || order?.address || "",
-      masterAc: order?.masterName || challan.masterAc || "",
+      masterAc: order?.codeMasterId?.masterName || order?.brokerName || "",
       quality:
         qualityMaster?.name ||
         challan.quality ||
@@ -359,7 +358,15 @@ export default function NewLotPage() {
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
+                  <Label>Lot Number</Label>
+                  <Input
+                    value="Auto-generated"
+                    readOnly
+                    className="font-bold bg-muted/50 text-muted-foreground italic"
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label>Firm *</Label>
                   <Input
                     value={form.firm}
@@ -392,13 +399,25 @@ export default function NewLotPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Party *</Label>
-                <Input
-                  value={form.party}
-                  onChange={(e) => setForm({ ...form, party: e.target.value })}
-                  className="font-bold text-primary"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Party *</Label>
+                  <Input
+                    value={form.party}
+                    onChange={(e) => setForm({ ...form, party: e.target.value })}
+                    className="font-bold text-primary"
+                    readOnly={!!prefilledChallanId}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Master Name</Label>
+                  <Input
+                    value={form.masterAc}
+                    onChange={(e) => setForm({ ...form, masterAc: e.target.value })}
+                    className="font-medium"
+                    readOnly={!!prefilledChallanId}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -409,6 +428,7 @@ export default function NewLotPage() {
                     onChange={(e) =>
                       setForm({ ...form, marka: e.target.value })
                     }
+                    readOnly={!!prefilledChallanId}
                   />
                 </div>
                 <div className="space-y-2">
@@ -431,6 +451,7 @@ export default function NewLotPage() {
                     setForm({ ...form, quality: e.target.value })
                   }
                   className="font-bold"
+                  readOnly={!!prefilledChallanId}
                 />
               </div>
             </CardContent>
@@ -454,6 +475,7 @@ export default function NewLotPage() {
                       setForm({ ...form, taka: Number(e.target.value) })
                     }
                     className="font-black text-lg bg-primary/5"
+                    readOnly={!!prefilledChallanId}
                   />
                 </div>
                 <div className="space-y-2">
@@ -465,6 +487,7 @@ export default function NewLotPage() {
                       setForm({ ...form, meter: Number(e.target.value) })
                     }
                     className="font-black text-lg bg-primary/5"
+                    readOnly={!!prefilledChallanId}
                   />
                 </div>
                 <div className="space-y-2">

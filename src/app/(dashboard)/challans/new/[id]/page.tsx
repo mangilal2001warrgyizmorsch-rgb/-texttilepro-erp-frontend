@@ -18,7 +18,7 @@ export default function NewChallanWithIdPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Generate New Challan</h1>
+          <h1 className="text-xl font-bold tracking-tight">Issue Challan to Order</h1>
           <p className="text-xs text-muted-foreground">Issue a challan against a draft order</p>
         </div>
       </div>

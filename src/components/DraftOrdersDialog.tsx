@@ -25,8 +25,8 @@ export default function DraftOrdersDialog({
   const [search, setSearch] = useState("");
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ["orders", "PendingChallan", search],
-    queryFn: () => api.get<any[]>("/orders?status=draft,PendingChallan"),
+    queryKey: ["orders", "draft", search],
+    queryFn: () => api.get<any[]>("/orders?status=draft"),
     enabled: open,
   });
 

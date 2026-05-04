@@ -43,6 +43,7 @@ type FormData = {
   unit: string;
   hsnCode: string;
   processType: ProcessType;
+  department: string;
   expectedLossPercent: string;
   shortPercent: string;
   defaultJobRate: string;
@@ -57,6 +58,7 @@ const defaultForm: FormData = {
   unit: "Meter",
   hsnCode: "",
   processType: "Dyeing",
+  department: "General",
   expectedLossPercent: "",
   shortPercent: "",
   defaultJobRate: "",
@@ -120,6 +122,7 @@ export default function QualitiesPage() {
       unit: q.unit ?? "Meter",
       hsnCode: q.hsnCode ?? "",
       processType: q.processType,
+      department: q.department ?? "General",
       expectedLossPercent: q.expectedLossPercent?.toString() ?? "",
       shortPercent: q.shortPercent?.toString() ?? "",
       defaultJobRate: q.defaultJobRate?.toString() ?? "",
@@ -143,6 +146,7 @@ export default function QualitiesPage() {
         unit: form.unit || undefined,
         hsnCode: form.hsnCode || undefined,
         processType: form.processType,
+        department: form.department,
         expectedLossPercent: num(form.expectedLossPercent),
         shortPercent: num(form.shortPercent),
         defaultJobRate: num(form.defaultJobRate),
@@ -217,8 +221,10 @@ export default function QualitiesPage() {
               <thead className="bg-muted/40 border-b">
                 <tr>
                   <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Quality Name</th>
-                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Process</th>
                   <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">HSN Code</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Department</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Unit</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Process</th>
                   <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">GSM / Width</th>
                   <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Job Rate</th>
                   <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Grey Rate</th>
@@ -232,12 +238,14 @@ export default function QualitiesPage() {
                     <td className="px-4 py-3 font-semibold text-sm group-hover:text-primary transition-colors">
                       {q.qualityName}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{q.hsnCode || "-"}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{q.department || "General"}</td>
+                    <td className="px-4 py-3 text-center text-xs text-muted-foreground">{q.unit || "-"}</td>
+                    <td className="px-4 py-3 text-center">
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PROCESS_COLORS[q.processType]}`}>
                         {q.processType}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{q.hsnCode || "-"}</td>
                     <td className="px-4 py-3 text-center text-xs text-muted-foreground">
                       {q.gsm ? `${q.gsm} GSM` : "-"} {q.width ? `/ ${q.width}"` : ""}
                     </td>
@@ -285,6 +293,19 @@ export default function QualitiesPage() {
                   <SelectItem value="Dyeing">Dyeing</SelectItem>
                   <SelectItem value="Printing">Printing</SelectItem>
                   <SelectItem value="Both">Both</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Department</Label>
+              <Select value={form.department} onValueChange={(v) => set("department", v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="General">General</SelectItem>
+                  <SelectItem value="Col Store">Col Store</SelectItem>
+                  <SelectItem value="Spare Parts">Spare Parts</SelectItem>
+                  <SelectItem value="Grey">Grey</SelectItem>
+                  <SelectItem value="Others">Others</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -25,8 +25,8 @@ export default function PendingChallansDialog({
   const router = useRouter();
 
   const { data: challans, isLoading } = useQuery({
-    queryKey: ["challans", "all", search],
-    queryFn: () => api.get<any[]>("/challans?limit=100"), // Fetch more to ensure we find pending ones
+    queryKey: ["challans", "pending", search],
+    queryFn: () => api.get<any[]>("/challans?status=pending&limit=100"), 
     enabled: open,
   });
 
@@ -34,7 +34,7 @@ export default function PendingChallansDialog({
 
   const filteredChallans = challansList.filter((challan: any) => {
     const status = (challan.status || "").toLowerCase();
-    const isPending = status === "pending" || status === "active" || status === "pendingchallan";
+    const isPending = status === "pending";
     
     if (!isPending) return false;
 

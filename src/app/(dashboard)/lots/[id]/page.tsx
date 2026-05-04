@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { toast } from "sonner";
 import { ArrowLeft, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 
 
 const STATUS_COLORS: Record<string, string> = {
@@ -99,11 +100,15 @@ function LotDetailInner({ id }: { id: string }) {
         </div>
         <div>
           <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Party Ch No.</span>
-          <p className="font-bold text-lg text-foreground">{lot.orderId?.weaverChNo || "—"}</p>
+          <p className="font-bold text-lg text-foreground">{lot.challanNo || lot.orderId?.weaverChNo || "—"}</p>
         </div>
         <div>
           <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Party Challan Date</span>
-          <p className="font-bold text-lg text-foreground">{lot.orderId?.weaverChDate || "—"}</p>
+          <p className="font-bold text-lg text-foreground">
+            {lot.challanDate 
+              ? format(new Date(lot.challanDate), "dd MMM yyyy") 
+              : (lot.orderId?.weaverChDate || "—")}
+          </p>
         </div>
         <div>
           <span className="text-muted-foreground block text-[10px] font-bold uppercase tracking-wider mb-1">Quality</span>

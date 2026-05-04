@@ -79,7 +79,7 @@ export default function ChallanPageWrapper() {
           className="bg-primary text-primary-foreground hover:opacity-90 gap-2 cursor-pointer shadow-sm"
         >
           <Plus size={16} />
-          Generate New Challan
+          Issue Challan to Order
         </Button>
       </div>
 

@@ -14,6 +14,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -55,7 +65,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
         const data = res?.data || res;
         return Array.isArray(data) ? data : [data];
       }
-      const res = await api.get<any>("/orders?status=draft,PendingChallan");
+      const res = await api.get<any>("/orders?status=draft");
       return res?.data || (Array.isArray(res) ? res : []);
     },
   });
@@ -131,6 +141,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
   const [submitting, setSubmitting] = useState(false);
   const hasInitialized = useRef<string | null>(null);
   const [table, setTable] = useState<{ tn: string; meter: string }[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { totalTaka: totalTakaCount, totalMeter: totalMeterValue } = useTableTotals(table);
 
@@ -406,6 +417,11 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
       return;
     }
 
+    setConfirmOpen(true);
+  };
+
+  const executeSubmit = async () => {
+    setConfirmOpen(false);
     setSubmitting(true);
     try {
       const finalTotal = form.total || "";
@@ -1098,6 +1114,23 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
             </div>
           </form>
         )}
+
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Challan Issue</AlertDialogTitle>
+              <AlertDialogDescription className="text-base text-foreground font-medium py-2">
+                Check Party Name, GST No, Quality, Pcs, Meter etc... Then Confirm
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={executeSubmit} className="bg-primary text-primary-foreground font-bold">
+                Confirm & Issue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
   );
 }
