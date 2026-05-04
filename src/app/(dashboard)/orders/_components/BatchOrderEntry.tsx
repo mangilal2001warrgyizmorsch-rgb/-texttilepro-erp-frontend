@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import OcrChallanReader from "./OcrChallanReader";
 import { cn } from "@/lib/utils";
+import { useTableTotals } from "@/hooks/useTableTotals";
 
 type TakaRow = {
   takaNo: string;
@@ -881,13 +882,24 @@ export function BatchOrderEntry({
   };
 
   const form = orders[current] || emptyOrder();
-  const sumMeters = form.takaDetails.reduce(
-    (s, r) => s + (parseFloat(r.meter) || 0),
-    0,
-  );
-  const meterMismatch =
-    form.totalMeter !== "" &&
-    Math.abs(sumMeters - parseFloat(form.totalMeter)) > 0.1;
+  
+  const { totalTaka: computedTotalTaka, totalMeter: computedTotalMeter } = useTableTotals(form.takaDetails);
+
+  useEffect(() => {
+    if (form.takaDetails.length > 0) {
+      const computedTakaStr = computedTotalTaka.toString();
+      const computedMeterStr = computedTotalMeter.toFixed(2).replace(/\.00$/, "");
+      
+      if (form.totalTaka !== computedTakaStr || form.totalMeter !== computedMeterStr) {
+        updateOrderObject({
+          totalTaka: computedTakaStr,
+          totalMeter: computedMeterStr,
+        });
+      }
+    }
+  }, [computedTotalTaka, computedTotalMeter, current, form.totalTaka, form.totalMeter]);
+
+  const meterMismatch = false;
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6 pb-20">

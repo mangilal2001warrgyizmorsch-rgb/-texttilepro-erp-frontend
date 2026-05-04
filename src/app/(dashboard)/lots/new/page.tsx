@@ -34,6 +34,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useTableTotals } from "@/hooks/useTableTotals";
 
 export default function NewLotPage() {
   const router = useRouter();
@@ -135,6 +136,18 @@ export default function NewLotPage() {
   });
 
   const [takaDetails, setTakaDetails] = useState<any[]>([]);
+
+  const { totalTaka: computedTotalTaka, totalMeter: computedTotalMeter } = useTableTotals(takaDetails);
+
+  useEffect(() => {
+    if (takaDetails.length > 0) {
+      setForm((prev) => ({
+        ...prev,
+        taka: computedTotalTaka,
+        meter: computedTotalMeter,
+      }));
+    }
+  }, [computedTotalTaka, computedTotalMeter]);
 
   // Auto-fill from challan, order, and ALL masters
   useEffect(() => {
@@ -512,20 +525,7 @@ export default function NewLotPage() {
                 <CardTitle className="text-sm font-bold uppercase tracking-wider text-primary">
                   Taka Breakdown
                 </CardTitle>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs font-bold hover:bg-primary/10"
-                  onClick={() => {
-                    setTakaDetails([
-                      ...takaDetails,
-                      { tn: 0, meter: 0, balanceMtr: 0 },
-                    ]);
-                  }}
-                >
-                  <Plus size={14} className="mr-1" /> Add
-                </Button>
+                {/* Add button removed as per readonly requirement */}
               </div>
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-auto max-h-[500px]">
@@ -555,11 +555,7 @@ export default function NewLotPage() {
                           type="number"
                           value={t.tn || ""}
                           placeholder="-"
-                          onChange={(e) => {
-                            const newDetails = [...takaDetails];
-                            newDetails[idx].tn = Number(e.target.value) || 0;
-                            setTakaDetails(newDetails);
-                          }}
+                          readOnly
                           className="h-8 border-none bg-muted/40 focus-visible:ring-1 text-center font-mono"
                         />
                       </td>
@@ -568,29 +564,12 @@ export default function NewLotPage() {
                           type="number"
                           value={t.meter || ""}
                           placeholder="0"
-                          onChange={(e) => {
-                            const newDetails = [...takaDetails];
-                            newDetails[idx].meter = Number(e.target.value);
-                            newDetails[idx].balanceMtr = Number(e.target.value);
-                            setTakaDetails(newDetails);
-                          }}
+                          readOnly
                           className="h-8 border-none bg-muted/40 focus-visible:ring-1 font-bold text-primary"
                         />
                       </td>
                       <td className="px-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
-                          onClick={() =>
-                            setTakaDetails(
-                              takaDetails.filter((_, i) => i !== idx),
-                            )
-                          }
-                        >
-                          <Trash2 size={12} />
-                        </Button>
+                        {/* Trash button removed */}
                       </td>
                     </tr>
                   ))}
@@ -609,7 +588,7 @@ export default function NewLotPage() {
                     Total Taka
                   </span>
                   <span className="text-xl font-black text-emerald-500 font-mono">
-                    {takaDetails.length}
+                    {computedTotalTaka}
                   </span>
                 </div>
                 <div className="flex flex-col items-end">
@@ -617,7 +596,7 @@ export default function NewLotPage() {
                     Total Meter
                   </span>
                   <span className="text-xl font-black text-muted-foreground/40 font-mono">
-                    {takaDetails.reduce((acc, curr) => acc + (Number(curr.meter) || 0), 0).toFixed(2)}
+                    {computedTotalMeter.toFixed(2)}
                   </span>
                 </div>
               </div>

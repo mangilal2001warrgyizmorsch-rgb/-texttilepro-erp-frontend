@@ -74,11 +74,10 @@ function safeFormat(dateValue: any, fmt: string, placeholder = "-") {
   }
 }
 export function OrderHistory() {
-  const orders = useQuery(api.orders.list, {});
+  const orders = useQuery(api.orders.list, { status: "draft" });
   const removeOrder = useMutation(api.orders.delete);
 
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
 
@@ -89,8 +88,7 @@ export function OrderHistory() {
       o.weaverChNo?.toLowerCase().includes(search.toLowerCase()) ||
       o.brokerName?.toLowerCase().includes(search.toLowerCase()) ||
       o.codeMasterId?.masterName?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === "all" || o.status === filterStatus;
-    return matchSearch && matchStatus;
+    return matchSearch;
   });
 
   const handleDelete = async (id: string) => {
@@ -117,20 +115,7 @@ export function OrderHistory() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2">
-           <Filter size={14} className="text-muted-foreground" />
-           <Select value={filterStatus} onValueChange={setFilterStatus}>
-             <SelectTrigger className="w-44 h-9 bg-muted/20 border-none">
-               <SelectValue placeholder="All Statuses" />
-             </SelectTrigger>
-             <SelectContent>
-               <SelectItem value="all">All Statuses</SelectItem>
-               {Object.entries(STATUS_LABELS).map(([key, label]) => (
-                 <SelectItem key={key} value={key}>{label}</SelectItem>
-               ))}
-             </SelectContent>
-           </Select>
-        </div>
+        {/* Status Filter removed as per requirements to only show draft orders */}
 
         {/* View Toggle */}
         <div className="flex items-center bg-muted/40 rounded-lg p-0.5 border">
@@ -174,7 +159,7 @@ export function OrderHistory() {
             <EmptyMedia variant="icon"><ShoppingCart /></EmptyMedia>
             <EmptyTitle>No history found</EmptyTitle>
             <EmptyDescription>
-              {search || filterStatus !== "all"
+              {search
                 ? "No orders match your filter criteria"
                 : "Your inward order history will appear here"}
             </EmptyDescription>

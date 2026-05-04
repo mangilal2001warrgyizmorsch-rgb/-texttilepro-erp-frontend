@@ -32,6 +32,7 @@ import {
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { useTableTotals } from "@/hooks/useTableTotals";
 
 interface ChallanEntryProps {
   initialData?: any;
@@ -131,15 +132,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
   const hasInitialized = useRef<string | null>(null);
   const [table, setTable] = useState<{ tn: string; meter: string }[]>([]);
 
-  const totalTakaCount = useMemo(() => table.length, [table]);
-  const totalMeterValue = useMemo(
-    () =>
-      table.reduce(
-        (sum, row) => sum + (parseFloat(row.meter || "") || 0),
-        0,
-      ),
-    [table],
-  );
+  const { totalTaka: totalTakaCount, totalMeter: totalMeterValue } = useTableTotals(table);
 
   const [form, setForm] = useState({
     challan_no: "",
@@ -254,7 +247,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
         party: order.partyName || "",
         partyId: safeId(order.partyId),
         gstin_no: order.partyGstin || snap.gstin || order.gstin || "",
-        party_address: order.partyAddress || snap.address || order.address || "",
+        party_address: order.city || snap.city || order.city || "",
         quality: order.qualityName || "",
         qualityId: safeId(order.qualityId),
         hsn_code: order.qualityDetails?.hsnCode || order.hsnCode || "",
@@ -303,57 +296,66 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
   useEffect(() => {
     if (!selectedOrder || editId) return;
     const o = selectedOrder;
-    const updates: Record<string, string> = {};
     const safeId = (val: any) => val?._id?.toString() || val?.toString() || "";
-
     const cleanName = (n: any) => (n || "").toString().toLowerCase().trim();
 
-    // 1. Firm Match - ALWAYS FORCE JAI MATA DI
-    if (mills.length > 0) {
-      const FIXED_FIRM_GSTIN = "24AABCA9842L1ZG";
-      let match = mills.find((m) => m.gstin?.trim().toUpperCase() === FIXED_FIRM_GSTIN || cleanName(m.accountName).includes("jai mata di"));
-      if (!match) match = o.firmId ? mills.find(m => m._id === safeId(o.firmId)) : undefined;
-      if (!match && o.firmName) match = mills.find(m => cleanName(m.accountName) === cleanName(o.firmName));
-      if (match && form.firmId !== match._id) {
-        updates.firmId = match._id;
-        updates.firm = match.accountName;
-      }
-    }
+    setForm((prev) => {
+      const updates: Record<string, string> = {};
 
-    // 2. Party Match
-    if (masterAccounts.length > 0) {
-      let match = o.partyId ? masterAccounts.find(p => p._id === safeId(o.partyId)) : undefined;
-      if (!match && o.partyName) match = masterAccounts.find(p => cleanName(p.accountName) === cleanName(o.partyName));
-      if (match && form.partyId !== match._id) {
-        updates.partyId = match._id;
-        updates.party = match.accountName;
+      // 1. Firm Match - ALWAYS FORCE JAI MATA DI
+      if (mills.length > 0) {
+        const FIXED_FIRM_GSTIN = "24AABCA9842L1ZG";
+        let match = mills.find((m) => m.gstin?.trim().toUpperCase() === FIXED_FIRM_GSTIN || cleanName(m.accountName).includes("jai mata di"));
+        if (!match) match = o.firmId ? mills.find(m => m._id === safeId(o.firmId)) : undefined;
+        if (!match && o.firmName) match = mills.find(m => cleanName(m.accountName) === cleanName(o.firmName));
+        if (match && prev.firmId !== match._id) {
+          updates.firmId = match._id;
+          updates.firm = match.accountName;
+        }
       }
-    }
 
-    // 3. Quality Match
-    if (qualities.length > 0) {
-      let match = o.qualityId ? qualities.find(q => q._id === safeId(o.qualityId)) : undefined;
-      if (!match && o.qualityName) match = qualities.find(q => cleanName(q.qualityName) === cleanName(o.qualityName));
-      if (match && form.qualityId !== match._id) {
-        updates.qualityId = match._id;
-        updates.quality = match.qualityName;
-        if (match.hsnCode && !form.hsn_code) updates.hsn_code = match.hsnCode;
+      // 2. Party Match
+      if (masterAccounts.length > 0) {
+        let match = o.partyId ? masterAccounts.find(p => p._id === safeId(o.partyId)) : undefined;
+        if (!match && o.partyName) match = masterAccounts.find(p => cleanName(p.accountName) === cleanName(o.partyName));
+        if (match) {
+          if (prev.partyId !== match._id) {
+            updates.partyId = match._id;
+            updates.party = match.accountName;
+          }
+          if (match.address && !prev.party_address) updates.party_address = match.city;
+          if (match.gstin && !prev.gstin_no) updates.gstin_no = match.gstin;
+        }
       }
-    }
 
-    // 4. Weaver Match
-    if (allWeavers.length > 0) {
-      let match = o.weaverId ? allWeavers.find(w => w._id === safeId(o.weaverId)) : undefined;
-      if (!match && o.weaverName) match = allWeavers.find(w => cleanName(w.weaverName) === cleanName(o.weaverName));
-      if (match && form.weaverId !== match._id) {
-        updates.weaverId = match._id;
-        updates.weaver = match.weaverName;
+      // 3. Quality Match
+      if (qualities.length > 0) {
+        let match = o.qualityId ? qualities.find(q => q._id === safeId(o.qualityId)) : undefined;
+        if (!match && o.qualityName) match = qualities.find(q => cleanName(q.qualityName) === cleanName(o.qualityName));
+        if (match) {
+          if (prev.qualityId !== match._id) {
+            updates.qualityId = match._id;
+            updates.quality = match.qualityName;
+          }
+          if (match.hsnCode && !prev.hsn_code) updates.hsn_code = match.hsnCode;
+        }
       }
-    }
 
-    if (Object.keys(updates).length > 0) {
-      setForm((prev) => ({ ...prev, ...updates }));
-    }
+      // 4. Weaver Match
+      if (allWeavers.length > 0) {
+        let match = o.weaverId ? allWeavers.find(w => w._id === safeId(o.weaverId)) : undefined;
+        if (!match && o.weaverName) match = allWeavers.find(w => cleanName(w.weaverName) === cleanName(o.weaverName));
+        if (match && prev.weaverId !== match._id) {
+          updates.weaverId = match._id;
+          updates.weaver = match.weaverName;
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        return { ...prev, ...updates };
+      }
+      return prev;
+    });
   }, [selectedOrder, editId, mills, masterAccounts, qualities, allWeavers, transporters]);
 
   // Sync taka table totals → form fields automatically
@@ -369,6 +371,14 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const isDisabled = (value: any, fieldName: string) => {
+    const alwaysEditable = ["challan_no", "challan_date", "remark"];
+
+    if (alwaysEditable.includes(fieldName)) return false;
+
+    return value !== "" && value !== null && value !== undefined;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -498,6 +508,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         className="h-10"
                         value={form.date}
                         onChange={(e) => updateField("date", e.target.value)}
+                        disabled={isDisabled(form.date, "date")}
                         required/>
                     </div>
                     <div className="space-y-2 md:col-span-2">
@@ -511,6 +522,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("challan_date", e.target.value)
                         }
+                        disabled={isDisabled(form.challan_date, "challan_date")}
                         required
                       />
                     </div>
@@ -525,6 +537,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("challan_no", e.target.value)
                         }
+                        disabled={isDisabled(form.challan_no, "challan_no")}
                         required
                       />
                     </div>
@@ -543,7 +556,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                             firm: m?.accountName || "",
                           }));
                         }}
-                        disabled
+                        disabled={isDisabled(form.firmId, "firmId")}
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Select Firm" />
@@ -574,6 +587,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                             party_address: p?.address || prev.party_address,
                           }));
                         }}
+                        disabled={isDisabled(form.partyId, "partyId")}
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Select Party" />
@@ -598,6 +612,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("gstin_no", e.target.value)
                         }
+                        disabled={isDisabled(form.gstin_no, "gstin_no")}
                       />
                     </div>
                     <div className="space-y-2 md:col-span-3">
@@ -611,6 +626,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("party_address", e.target.value)
                         }
+                        disabled={isDisabled(form.party_address, "party_address")}
                       />
                     </div>
                   </CardContent>
@@ -646,6 +662,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                             width: q?.width?.toString() || prev.width,
                           }));
                         }}
+                        disabled={isDisabled(form.qualityId || form.quality, "qualityId")}
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Select Quality" />
@@ -675,6 +692,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("hsn_code", e.target.value)
                         }
+                        disabled={isDisabled(form.hsn_code, "hsn_code")}
                       />
                     </div>
                     <div className="space-y-2 md:col-span-4">
@@ -686,6 +704,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         placeholder="Item description"
                         value={form.item}
                         onChange={(e) => updateField("item", e.target.value)}
+                        disabled={isDisabled(form.item, "item")}
                       />
                     </div>
                     <div className="space-y-2 md:col-span-3">
@@ -698,6 +717,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         placeholder="0"
                         value={form.taka}
                         onChange={(e) => updateField("taka", e.target.value)}
+                        disabled={isDisabled(form.taka, "taka")}
                         required
                       />
                     </div>
@@ -712,6 +732,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         placeholder="0.00"
                         value={form.meter}
                         onChange={(e) => updateField("meter", e.target.value)}
+                        disabled={isDisabled(form.meter, "meter")}
                         required
                       />
                     </div>
@@ -722,6 +743,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                       <Select
                         value={form.dyed_print || undefined}
                         onValueChange={(v) => updateField("dyed_print", v)}
+                        disabled={isDisabled(form.dyed_print, "dyed_print")}
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="-- Select --" />
@@ -748,6 +770,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                             weaver: w?.weaverName || "",
                           }));
                         }}
+                        disabled={isDisabled(form.weaverId, "weaverId")}
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Select Weaver" />
@@ -785,6 +808,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("fas_rate", e.target.value)
                         }
+                        disabled={isDisabled(form.fas_rate, "fas_rate")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -799,6 +823,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("amount", e.target.value)
                         }
+                        disabled={isDisabled(form.amount, "amount")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -813,6 +838,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("weight", e.target.value)
                         }
+                        disabled={isDisabled(form.weight, "weight")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -839,6 +865,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("chadhti", e.target.value)
                         }
+                        disabled={isDisabled(form.chadhti, "chadhti")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -851,6 +878,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         className="h-10"
                         value={form.width}
                         onChange={(e) => updateField("width", e.target.value)}
+                        disabled={isDisabled(form.width, "width")}
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
@@ -863,6 +891,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("pu_bill_no", e.target.value)
                         }
+                        disabled={isDisabled(form.pu_bill_no, "pu_bill_no")}
                       />
                     </div>
                   </CardContent>
@@ -887,6 +916,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("lr_no", e.target.value)
                         }
+                        disabled={isDisabled(form.lr_no, "lr_no")}
                       />
                     </div>
                     <div className="space-y-2">
@@ -900,6 +930,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("lr_date", e.target.value)
                         }
+                        disabled={isDisabled(form.lr_date, "lr_date")}
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2">
@@ -916,6 +947,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                             transpoter: t?.accountName || "",
                           }));
                         }}
+                        disabled={isDisabled(form.transporterId, "transporterId")}
                       >
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Select Transporter" />
@@ -939,6 +971,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                         onChange={(e) =>
                           updateField("remark", e.target.value)
                         }
+                        disabled={isDisabled(form.remark, "remark")}
                       />
                     </div>
                   </CardContent>
@@ -975,17 +1008,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                     <CardTitle className="font-bold text-sm uppercase tracking-wider text-primary flex items-center gap-2">
                       <Scissors size={16} /> Taka Breakdown
                     </CardTitle>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs font-bold hover:bg-primary/10"
-                      onClick={() =>
-                        setTable((prev) => [...prev, { tn: "", meter: "" }])
-                      }
-                    >
-                      <Plus size={14} className="mr-1" /> Add Row
-                    </Button>
+                    {/* Add Row button removed as per readonly requirement */}
                   </CardHeader>
                   <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                     <table className="w-full text-xs">
@@ -1017,11 +1040,7 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                                 className="h-8 border-none bg-muted/40 focus-visible:ring-1 text-center font-mono"
                                 placeholder="-"
                                 value={row.tn || ""}
-                                onChange={(e) => {
-                                  const next = [...table];
-                                  next[idx].tn = e.target.value;
-                                  setTable(next);
-                                }}
+                                readOnly
                               />
                             </td>
                             <td className="px-2 py-1">
@@ -1031,25 +1050,11 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
                                 className="h-8 border-none bg-muted/40 focus-visible:ring-1 font-bold text-primary"
                                 placeholder="0"
                                 value={row.meter || ""}
-                                onChange={(e) => {
-                                  const next = [...table];
-                                  next[idx].meter = e.target.value;
-                                  setTable(next);
-                                }}
+                                readOnly
                               />
                             </td>
                             <td className="px-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
-                                onClick={() =>
-                                  setTable(table.filter((_, i) => i !== idx))
-                                }
-                              >
-                                <Trash2 size={12} />
-                              </Button>
+                              {/* Trash button removed */}
                             </td>
                           </tr>
                         ))}

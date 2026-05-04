@@ -26,7 +26,7 @@ export default function ChallanPageWrapper() {
     queryKey: ["challan", page, search],
     queryFn: () =>
       api.get<any>(
-        `/challans?page=${page}&limit=20${search ? `&search=${search}` : ""}`,
+        `/challans?page=${page}&limit=20${search ? `&search=${search}` : ""}&status=pending`,
       ),
   });
 
