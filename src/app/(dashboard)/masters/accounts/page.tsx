@@ -264,54 +264,53 @@ export default function AccountsPage() {
           </EmptyContent>
         </Empty>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((a) => (
-            <Card key={a._id} className="hover:shadow-sm transition-shadow">
-              <CardContent className="flex items-center justify-between py-3 px-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-sm">{a.accountName}</p>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[a.roleType]}`}
-                      >
-                        {a.roleType}
-                      </span>
+        <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Role</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Code</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">City</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">GSTIN</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase w-24">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {filtered.map((a) => (
+                  <tr key={a._id} className="hover:bg-muted/20 transition-colors group">
+                    <td className="px-4 py-3 font-semibold text-sm group-hover:text-primary transition-colors">
+                      {a.accountName}
                       {!a.isActive && (
-                        <Badge variant="secondary" className="text-[10px]">
+                        <Badge variant="secondary" className="text-[10px] ml-2">
                           Inactive
                         </Badge>
                       )}
-                    </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                      {a.clientCode && <span>Code: {a.clientCode}</span>}
-                      {a.mobileNo && <span>{a.mobileNo}</span>}
-                      {a.city && <span>{a.city}</span>}
-                      {a.gstin && <span>GSTIN: {a.gstin}</span>}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 cursor-pointer"
-                    onClick={() => openEdit(a)}
-                  >
-                    <Edit size={14} />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 cursor-pointer text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(a._id)}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[a.roleType]}`}>
+                        {a.roleType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{a.clientCode || "-"}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{a.city || "-"}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{a.gstin || "-"}</td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="icon" variant="ghost" className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-primary" onClick={() => openEdit(a)}>
+                          <Edit size={14} />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-destructive" onClick={() => handleDelete(a._id)}>
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

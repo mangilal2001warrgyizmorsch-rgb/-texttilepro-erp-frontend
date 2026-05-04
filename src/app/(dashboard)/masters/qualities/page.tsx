@@ -211,42 +211,59 @@ export default function QualitiesPage() {
           </EmptyContent>
         </Empty>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((q) => (
-            <Card key={q._id} className="hover:shadow-sm transition-shadow">
-              <CardContent className="flex items-center justify-between py-3 px-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-sm">{q.qualityName}</p>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PROCESS_COLORS[q.processType]}`}>
-                      {q.processType}
-                    </span>
-                    {q.hsnCode && <Badge variant="secondary" className="text-[10px]">HSN: {q.hsnCode}</Badge>}
-                  </div>
-                  <div className="flex flex-wrap gap-4 mt-1 text-xs text-muted-foreground">
-                    {q.gsm && <span>GSM: {q.gsm}</span>}
-                    {q.width && <span>Width: {q.width}&quot;</span>}
-                    {q.defaultJobRate && <span>Job Rate: ₹{q.defaultJobRate}</span>}
-                    {q.greyRate && <span>Grey Rate: ₹{q.greyRate}</span>}
-                    {q.expectedLossPercent && <span>Loss: {q.expectedLossPercent}%</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" className="h-8 w-8 cursor-pointer" onClick={() => openEdit(q)}>
-                    <Edit size={14} />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8 cursor-pointer text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(q._id)}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 border-b">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Quality Name</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Process</th>
+                  <th className="text-left px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">HSN Code</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">GSM / Width</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Job Rate</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Grey Rate</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase">Loss %</th>
+                  <th className="text-center px-4 py-3 font-semibold text-xs tracking-wider text-muted-foreground uppercase w-24">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {filtered.map((q) => (
+                  <tr key={q._id} className="hover:bg-muted/20 transition-colors group">
+                    <td className="px-4 py-3 font-semibold text-sm group-hover:text-primary transition-colors">
+                      {q.qualityName}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PROCESS_COLORS[q.processType]}`}>
+                        {q.processType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{q.hsnCode || "-"}</td>
+                    <td className="px-4 py-3 text-center text-xs text-muted-foreground">
+                      {q.gsm ? `${q.gsm} GSM` : "-"} {q.width ? `/ ${q.width}"` : ""}
+                    </td>
+                    <td className="px-4 py-3 text-center font-mono text-xs">{q.defaultJobRate ? `₹${q.defaultJobRate}` : "-"}</td>
+                    <td className="px-4 py-3 text-center font-mono text-xs">{q.greyRate ? `₹${q.greyRate}` : "-"}</td>
+                    <td className="px-4 py-3 text-center text-xs text-muted-foreground">{q.expectedLossPercent ? `${q.expectedLossPercent}%` : "-"}</td>
+                    <td className="px-4 py-3 text-center">
+                      <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="icon" variant="ghost" className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-primary" onClick={() => openEdit(q)}>
+                          <Edit size={14} />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 cursor-pointer text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(q._id)}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

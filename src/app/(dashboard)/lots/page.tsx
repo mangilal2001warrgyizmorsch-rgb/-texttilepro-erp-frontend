@@ -332,11 +332,14 @@ export default function LotsPage() {
                 <TableHeader className="bg-muted/50 sticky top-0 z-20">
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-12 text-center text-xs font-bold uppercase tracking-wider h-11">#</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Lot / Challan</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Party / Firm</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Marka</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11 text-right">Taka</TableHead>
-                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11 text-right">Meter</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Lot No</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Party Name</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Party Ch No.</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Challan Date</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Quality</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11 text-right">Total Taka</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11 text-right">Total Meter</TableHead>
+                    <TableHead className="text-xs font-bold uppercase tracking-wider h-11 text-right">Amount</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider h-11 text-center">Status</TableHead>
                     <TableHead className="text-xs font-bold uppercase tracking-wider h-11 text-right">Actions</TableHead>
                   </TableRow>
@@ -348,20 +351,35 @@ export default function LotsPage() {
                       <TableRow key={item._id} className="hover:bg-muted/30 group transition-colors">
                         <TableCell className="text-center font-mono text-xs text-muted-foreground">{idx + 1}</TableCell>
                         <TableCell className="font-bold">
-                          {isChallan ? (item.challan_no || item.challanNo) : item.lotNo}
-                          <p className="text-[10px] font-medium text-muted-foreground">{formatDate(item.date || item.createdAt)}</p>
+                          {isChallan ? "-" : item.lotNo}
                         </TableCell>
                         <TableCell className="font-medium text-sm">
-                          {isChallan ? (item.firm || item.firmName) : item.partyName}
+                          {isChallan ? (item.party || item.firm) : item.partyName}
                         </TableCell>
-                        <TableCell className="text-sm">
-                          {item.marka || item.party || "-"}
+                        <TableCell className="text-sm font-mono">
+                          {isChallan 
+                            ? (item.challan_no || item.challanNo) 
+                            : (item.challanNo || item.challanId?.challan_no || "-")}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDate(isChallan 
+                            ? (item.challan_date || item.date) 
+                            : (item.challanDate || item.challanId?.challan_date || item.createdAt))}
+                        </TableCell>
+                        <TableCell className="text-xs font-semibold">
+                          {item.qualityName || item.quality || item.challanId?.quality || "-"}
                         </TableCell>
                         <TableCell className="text-right font-semibold">
-                          {item.taka || item.totalTaka || 0}
+                          {item.taka || item.totalTaka || item.challanId?.taka || 0}
                         </TableCell>
                         <TableCell className="text-right font-bold text-primary">
-                          {(item.meter || item.totalMeter || 0).toFixed(1)}m
+                          {Number(item.meter || item.totalMeter || item.challanId?.meter || 0).toFixed(1)}m
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">
+                          {(() => {
+                            const amt = item.amount || item.challanId?.amount;
+                            return amt ? `₹${Number(amt).toLocaleString()}` : "-";
+                          })()}
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline" className={cn("text-[10px] font-bold uppercase px-2 py-0 rounded-md", STATUS_COLORS[item.status] || "bg-muted")}>

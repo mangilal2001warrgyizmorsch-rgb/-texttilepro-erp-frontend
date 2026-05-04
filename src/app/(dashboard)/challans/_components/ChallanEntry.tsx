@@ -358,16 +358,22 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
     });
   }, [selectedOrder, editId, mills, masterAccounts, qualities, allWeavers, transporters]);
 
-  // Sync taka table totals → form fields automatically
+  // Sync taka table totals & calculate amounts → form fields automatically
   useEffect(() => {
-    if (table.length > 0) {
+    if (table.length > 0 || form.meter || form.fas_rate) {
+      const m = Number(form.meter || totalMeterValue || 0);
+      const r = Number(form.fas_rate || 0);
+      const calcTotal = (m * r).toFixed(2).replace(/\.00$/, "");
+
       setForm((prev) => ({
         ...prev,
-        taka: totalTakaCount.toString(),
-        meter: totalMeterValue.toFixed(2).replace(/\.00$/, ""),
+        taka: table.length > 0 ? totalTakaCount.toString() : prev.taka,
+        meter: table.length > 0 ? totalMeterValue.toFixed(2).replace(/\.00$/, "") : prev.meter,
+        total: calcTotal,
+        amount: calcTotal, // "save the total amount as amount when saved"
       }));
     }
-  }, [totalTakaCount, totalMeterValue, table.length]);
+  }, [totalTakaCount, totalMeterValue, table.length, form.fas_rate, form.meter]);
 
   const updateField = (field: keyof typeof form, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -402,10 +408,11 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
 
     setSubmitting(true);
     try {
-      const finalTotal = form.total || form.amount || "";
+      const finalTotal = form.total || "";
       const payload = {
         ...form,
         total: finalTotal,
+        amount: finalTotal, // Ensure amount is saved as the total calculated value
         orderId: selectedOrderId || initialData?.orderId || undefined,
         // Sanitize empty ObjectId strings to undefined
         firmId: form.firmId || undefined,

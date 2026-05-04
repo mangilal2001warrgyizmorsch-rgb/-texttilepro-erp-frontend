@@ -112,7 +112,12 @@ export const api = {
   },
   ocr: {
     extract: { endpoint: "/ocr/extract", method: "POST" },
-  }
+  },
+  vehicles: {
+    list: { endpoint: "/vehicles", method: "GET" },
+    create: { endpoint: "/vehicles", method: "POST" },
+    delete: { endpoint: "/vehicles/:id", method: "DELETE" },
+  },
 } as const;
 
 function buildUrl(endpoint: string, args: any = {}) {

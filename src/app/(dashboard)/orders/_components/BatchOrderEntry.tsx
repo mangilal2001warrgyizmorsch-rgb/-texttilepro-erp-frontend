@@ -32,6 +32,7 @@ import {
   Camera,
   QrCode,
   X,
+  Truck,
 } from "lucide-react";
 import OcrChallanReader from "./OcrChallanReader";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,7 @@ type OrderForm = {
   shippingMode: "DirectMills" | "MarketTempo" | "ByLR";
   lrNo: string;
   lrDate: string;
+  transporterId: string;
   transporterName: string;
   gstin: string;
   address: string;
@@ -114,6 +116,8 @@ type OrderForm = {
   brokerName: string;
   vehicleNo: string;
   driverMobile: string;
+  noBales: string;
+  baleNo: string;
   takaDetails: TakaRow[];
   ocrFileId: string;
 };
@@ -151,6 +155,7 @@ const emptyOrder = (): OrderForm => ({
   shippingMode: "DirectMills",
   lrNo: "",
   lrDate: new Date().toISOString().split("T")[0],
+  transporterId: "",
   transporterName: "",
   gstin: "",
   address: "",
@@ -159,6 +164,8 @@ const emptyOrder = (): OrderForm => ({
   brokerName: "",
   vehicleNo: "",
   driverMobile: "",
+  noBales: "",
+  baleNo: "",
   takaDetails: [{ takaNo: "", marka: "", meter: "", weight: "" }],
   ocrFileId: "",
 });
@@ -191,6 +198,7 @@ export function BatchOrderEntry({
   const weavers = useQuery(api.weavers.list, {});
   const qualities = useQuery(api.qualities.list, {});
   const codeMaster = useQuery(api.codeMaster.list, {});
+  const vehicles = useQuery(api.vehicles.list, {});
   const createBatch = useMutation(api.orders.createBatch);
   const updateOrder = useMutation(api.orders.update);
 
@@ -224,12 +232,15 @@ export function BatchOrderEntry({
           greyRate: initialOrder.greyRate?.toString() || "",
           shippingMode: initialOrder.shippingMode || "DirectMills",
           lrNo: initialOrder.lrNo || "",
-          lrDate: initialOrder.lrDate || "",
+          lrDate: initialOrder.lrDate || new Date().toISOString().split("T")[0],
+          transporterId: initialOrder.transporterId || "",
           transporterName: initialOrder.transporterName || "",
           gstin: initialOrder.gstin || "",
           address: initialOrder.address || "",
           vehicleNo: initialOrder.vehicleNo || "",
           driverMobile: initialOrder.driverMobile || "",
+          noBales: initialOrder.noBales?.toString() || "",
+          baleNo: initialOrder.baleNo || "",
           takaDetails: initialOrder.takaDetails?.map((t: any) => ({
             takaNo: t.takaNo || "",
             marka: t.marka || "",
@@ -249,6 +260,8 @@ export function BatchOrderEntry({
   const [isOcrExtracting, setIsOcrExtracting] = useState(false);
   const [ocrAutoCamera, setOcrAutoCamera] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const [addingTransporter, setAddingTransporter] = useState(false);
+  const [addingVehicle, setAddingVehicle] = useState(false);
 
   const mills = (accounts ?? []).filter(
     (a) => a.roleType === "Mill" && a.isActive,
@@ -256,6 +269,9 @@ export function BatchOrderEntry({
   const masterAccounts = (accounts ?? []).filter(
     (a) =>
       ["Master", "Customer", "Supplier"].includes(a.roleType) && a.isActive,
+  );
+  const transporters = (accounts ?? []).filter(
+    (a) => a.roleType === "Transporter" && a.isActive,
   );
 
   const updateField = (field: keyof OrderForm, value: any) => {
@@ -283,11 +299,14 @@ export function BatchOrderEntry({
           "weaverName",
           "weaverMarka",
           "shippingMode",
+          "transporterId",
           "transporterName",
           "vehicleNo",
           "driverMobile",
           "lrNo",
           "lrDate",
+          "noBales",
+          "baleNo",
           "gstin",
           "address",
           "ocrFileId",
@@ -839,6 +858,9 @@ export function BatchOrderEntry({
         ...o,
         qualityId: o.qualityId === "CUSTOM" || o.qualityId === "" ? undefined : o.qualityId,
         partyId: o.partyId === "" ? undefined : o.partyId,
+        transporterId: o.transporterId === "" ? undefined : o.transporterId,
+        noBales: Number(o.noBales) || undefined,
+        baleNo: o.baleNo || undefined,
         weaverId: o.weaverId === "" ? undefined : o.weaverId,
         codeMasterId: o.codeMasterId === "" ? undefined : o.codeMasterId,
         totalTaka: Number(o.totalTaka),
@@ -1453,6 +1475,175 @@ export function BatchOrderEntry({
                   value={form.greyRate}
                   onChange={(e) => updateField("greyRate", e.target.value)}
                   placeholder="45.00"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Shipping & Dispatch Details */}
+          <Card className="shadow-sm">
+            <CardHeader className="pb-3 border-b bg-muted/10">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Truck size={16} className="text-primary" /> Shipping & Dispatch Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Vehicle No.
+                </Label>
+                {addingVehicle ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      placeholder="New vehicle no"
+                      value={form.vehicleNo}
+                      onChange={(e) => updateField("vehicleNo", e.target.value.toUpperCase())}
+                      className="h-10 uppercase"
+                    />
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      setAddingVehicle(false);
+                      updateOrderObject({ vehicleNo: "" });
+                    }}><X size={16} /></Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={form.vehicleNo || undefined}
+                    onValueChange={(v) => {
+                      if (v === "ADD_NEW") {
+                        setAddingVehicle(true);
+                        updateOrderObject({ vehicleNo: "" });
+                        return;
+                      }
+                      const vObj = (vehicles ?? []).find((x: any) => x.vehicleNo === v);
+                      updateOrderObject({
+                        vehicleNo: v,
+                        transporterId: vObj?.transporterId || form.transporterId,
+                        transporterName: vObj?.transporterName || form.transporterName,
+                        driverMobile: vObj?.driverMobile || form.driverMobile,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-10 uppercase">
+                      <SelectValue placeholder="Select vehicle..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(vehicles ?? []).map((v: any) => (
+                        <SelectItem key={v._id} value={v.vehicleNo} className="uppercase">
+                          {v.vehicleNo} {v.transporterName ? `(${v.transporterName})` : ""}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="ADD_NEW" className="text-primary font-bold">
+                        <Plus size={14} className="inline mr-1" /> Add New
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Driver Mobile No.
+                </Label>
+                <Input
+                  value={form.driverMobile}
+                  onChange={(e) => updateField("driverMobile", e.target.value)}
+                  placeholder="e.g. 9876543210"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Transport Name
+                </Label>
+                {addingTransporter ? (
+                  <div className="flex gap-2">
+                    <Input
+                      autoFocus
+                      placeholder="New transporter"
+                      value={form.transporterName}
+                      onChange={(e) => updateField("transporterName", e.target.value)}
+                      className="h-10"
+                    />
+                    <Button size="icon" variant="ghost" onClick={() => {
+                      setAddingTransporter(false);
+                      updateOrderObject({ transporterId: "", transporterName: "" });
+                    }}><X size={16} /></Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={form.transporterId || undefined}
+                    onValueChange={(v) => {
+                      if (v === "ADD_NEW") {
+                        setAddingTransporter(true);
+                        updateOrderObject({ transporterId: "", transporterName: "" });
+                        return;
+                      }
+                      const t = transporters.find((x) => x._id === v);
+                      updateOrderObject({
+                        transporterId: v,
+                        transporterName: t?.accountName || "",
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select transporter..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {transporters.map((t) => (
+                        <SelectItem key={t._id} value={t._id}>
+                          {t.accountName}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="ADD_NEW" className="text-primary font-bold">
+                        <Plus size={14} className="inline mr-1" /> Add New
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  LR No.
+                </Label>
+                <Input
+                  value={form.lrNo}
+                  onChange={(e) => updateField("lrNo", e.target.value)}
+                  placeholder="Enter LR number"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  LR Date
+                </Label>
+                <Input
+                  type="date"
+                  value={form.lrDate}
+                  onChange={(e) => updateField("lrDate", e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  No. of Bales
+                </Label>
+                <Input
+                  type="number"
+                  value={form.noBales}
+                  onChange={(e) => updateField("noBales", e.target.value)}
+                  placeholder="0"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-3">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Bale No.
+                </Label>
+                <Input
+                  value={form.baleNo}
+                  onChange={(e) => updateField("baleNo", e.target.value)}
+                  placeholder="e.g. B-001, B-002"
+                  className="h-10"
                 />
               </div>
             </CardContent>
