@@ -30,14 +30,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function StampingPage() {
-  const [activeTab, setActiveTab] = useState<"pending" | "search">("pending");
+  const [activeTab, setActiveTab] = useState<"pending" | "search">("search");
   const [searchFilters, setSearchFilters] = useState({
     takaMarka: "",
     weaverChNo: "",
     weaverMarka: "",
     baleNo: "",
     lotNo: "",
-    takaNo: "",
   });
   const [selectedTaka, setSelectedTaka] = useState<any[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -174,8 +173,7 @@ export default function StampingPage() {
                           weaverChNo: "", 
                           weaverMarka: "", 
                           baleNo: "",
-                          lotNo: lot.lotNo,
-                          takaNo: ""
+                          lotNo: lot.lotNo
                         });
                         setActiveTab("search");
                       }}>
@@ -215,17 +213,7 @@ export default function StampingPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="takaNo">Taka No</Label>
-                    <Input
-                      id="takaNo"
-                      name="takaNo"
-                      placeholder="e.g. 90653"
-                      value={searchFilters.takaNo}
-                      onChange={handleSearchChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="takaMarka">Taka Marka / Marka</Label>
+                    <Label htmlFor="takaMarka">Taka Marka</Label>
                     <Input
                       id="takaMarka"
                       name="takaMarka"
@@ -282,9 +270,10 @@ export default function StampingPage() {
                       <TableRow>
                         <TableHead className="w-12"></TableHead>
                         <TableHead>Lot No</TableHead>
-                        <TableHead>Taka No</TableHead>
-                        <TableHead>Marka</TableHead>
+                        <TableHead>Taka Marka</TableHead>
+                        <TableHead>Party Marka</TableHead>
                         <TableHead>Weaver Ch</TableHead>
+                        <TableHead>Sr No</TableHead>
                         <TableHead className="text-right">Meter</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -318,9 +307,10 @@ export default function StampingPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="font-medium">{taka.lotNo}</TableCell>
-                              <TableCell>{taka.takaNo}</TableCell>
-                              <TableCell>{taka.takaMarka || "-"}</TableCell>
+                              <TableCell className="font-bold">{taka.takaNo}</TableCell>
+                              <TableCell>{taka.partyMarka || "-"}</TableCell>
                               <TableCell>{taka.weaverChNo || "-"}</TableCell>
+                              <TableCell className="text-center">{taka.takaSerialNo}</TableCell>
                               <TableCell className="text-right font-mono font-bold">{taka.takaMeter}</TableCell>
                             </TableRow>
                           );
@@ -389,7 +379,38 @@ export default function StampingPage() {
               )}
             </div>
 
-            <div className="p-6 bg-muted/10">
+            <div className="p-6 bg-muted/10 space-y-4">
+              {selectedTaka.length > 0 && (
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/30 rounded-lg p-6 space-y-4">
+                  <div className="text-center space-y-3">
+                    {selectedTaka.map((taka: any, idx: number) => (
+                      <div key={`${taka.orderId}-${taka.takaNo}`} className={`${idx > 0 ? "mt-4 pt-4 border-t border-primary/20" : ""}`}>
+                        <div className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Taka {idx + 1} of {selectedTaka.length}</div>
+                        <div className="space-y-2">
+                          <div>
+                            <div className="text-xs uppercase text-muted-foreground font-semibold mb-1">Party Marka</div>
+                            <div className="text-3xl font-bold text-primary tracking-wide">{taka.partyMarka || "-"}</div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <div className="text-xs uppercase text-muted-foreground font-semibold mb-1">Lot No</div>
+                              <div className="text-2xl font-bold text-foreground">{taka.lotNo}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs uppercase text-muted-foreground font-semibold mb-1">Taka No</div>
+                              <div className="text-2xl font-bold text-foreground">{taka.takaNo}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs uppercase text-muted-foreground font-semibold mb-1">Mtr</div>
+                              <div className="text-2xl font-bold text-foreground font-mono">{taka.takaMeter}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Button 
                 className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20 gap-2" 
                 disabled={selectedTaka.length === 0}

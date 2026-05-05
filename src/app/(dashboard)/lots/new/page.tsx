@@ -275,32 +275,32 @@ export default function NewLotPage() {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6 bg-muted/10 min-h-screen">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6 bg-muted/10 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/lots">
             <Button
               variant="ghost"
               size="icon"
-              className="h-10 w-10 rounded-full border bg-background shadow-sm"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full border bg-background shadow-sm shrink-0"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} />
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-lg sm:text-2xl font-bold tracking-tight">
               Create New Lot
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Process delivery challan into production lot
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 ml-12 sm:ml-0">
           <Button
             variant="outline"
-            className="font-semibold"
+            className="font-semibold h-9 sm:h-10"
             onClick={() => router.back()}
           >
             Cancel
@@ -308,9 +308,9 @@ export default function NewLotPage() {
           <Button
             onClick={handleSubmit}
             disabled={submitting}
-            className="gap-2 font-bold shadow-lg shadow-primary/20"
+            className="gap-2 font-bold shadow-lg shadow-primary/20 h-9 sm:h-10"
           >
-            <CheckCircle size={18} />
+            <CheckCircle size={16} />
             {submitting ? "Saving..." : "Save Lot Entry"}
           </Button>
         </div>

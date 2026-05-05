@@ -46,14 +46,14 @@ export default function ReadyForDispatchPage() {
   const statusTabs: StatusFilter[] = ["all", "Pending", "Dispatched", "Billed"];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Ready for Dispatch</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage lots ready to be sent to parties</p>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Ready for Dispatch</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">Manage lots ready to be sent to parties</p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-fit">
           <Link href="/dispatch/new">
             <Truck className="w-4 h-4 mr-2" />
             Ready for Dispatch
@@ -101,20 +101,21 @@ export default function ReadyForDispatchPage() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden shadow-sm">
-          <Table>
-            <TableHeader className="bg-muted/30">
-              <TableRow>
-                <TableHead>Party Name</TableHead>
-                <TableHead>Master Name</TableHead>
-                <TableHead>Marka</TableHead>
-                <TableHead>Lot No</TableHead>
-                <TableHead>Quality</TableHead>
-                <TableHead className="text-right">Taka</TableHead>
-                <TableHead className="text-right">Meter</TableHead>
-                {filter !== "Pending" && <TableHead>Status</TableHead>}
-              </TableRow>
-            </TableHeader>
+        <div className="rounded-lg border border-border shadow-sm">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[800px]">
+              <TableHeader className="bg-muted/30 whitespace-nowrap">
+                <TableRow>
+                  <TableHead>Party Name</TableHead>
+                  <TableHead>Master Name</TableHead>
+                  <TableHead>Marka</TableHead>
+                  <TableHead>Lot No</TableHead>
+                  <TableHead>Quality</TableHead>
+                  <TableHead className="text-right">Taka</TableHead>
+                  <TableHead className="text-right">Meter</TableHead>
+                  {filter !== "Pending" && <TableHead>Status</TableHead>}
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {filtered.map((d: any) => (
                 <TableRow key={d._id} className="hover:bg-muted/20 transition-colors">
@@ -141,6 +142,7 @@ export default function ReadyForDispatchPage() {
             </TableBody>
           </Table>
         </div>
+      </div>
       )}
     </div>
   );

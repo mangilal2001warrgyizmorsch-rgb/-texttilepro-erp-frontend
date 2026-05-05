@@ -11,19 +11,17 @@ import {
   ShoppingCart,
   Layers,
   MapPin,
-  Factory,
   Truck,
   TrendingUp,
+  PackageCheck,
   AlertCircle,
   FileText,
-  ClipboardList,
-  PackageCheck,
+  Stamp,
 } from "lucide-react";
 
 export default function Dashboard() {
   const accounts = useQuery(api.accounts.list, {});
   const qualities = useQuery(api.qualities.list, {});
-  const weavers = useQuery(api.weavers.list, {});
 
   // Order pipeline stats
   const ordersActive = useQuery(api.orders.list, { status: "ChallanIssued" });
@@ -41,7 +39,7 @@ export default function Dashboard() {
 
   const router = useRouter();
 
-  const loading = accounts === undefined || qualities === undefined || weavers === undefined;
+  const loading = accounts === undefined || qualities === undefined;
 
   const masterStats = [
     {
@@ -60,23 +58,13 @@ export default function Dashboard() {
       bg: "bg-green-500/10",
       href: "/masters/qualities",
     },
-    {
-      label: "Weavers",
-      value: weavers?.length ?? 0,
-      icon: <Factory size={20} />,
-      color: "text-purple-400",
-      bg: "bg-purple-500/10",
-      href: "/masters/weavers",
-    },
   ];
 
   const pipelineStats = [
-    { label: "In Process", value: ordersInProcess?.length ?? 0, icon: <ClipboardList size={18} />, href: "/orders", color: "text-yellow-400", bg: "bg-yellow-500/10" },
-    { label: "Lots in Storage", value: lotsInStorage?.length ?? 0, icon: <Layers size={18} />, href: "/lots", color: "text-cyan-400", bg: "bg-cyan-500/10" },
-    { label: "Finished Lots", value: lotsFinished?.length ?? 0, icon: <PackageCheck size={18} />, href: "/lots", color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "Ready for Dispatch", value: dispatched?.length ?? 0, icon: <Truck size={18} />, href: "/dispatch", color: "text-blue-400", bg: "bg-blue-500/10" },
-    { label: "Draft Bills", value: draftBills?.length ?? 0, icon: <FileText size={18} />, href: "/billing", color: "text-orange-400", bg: "bg-orange-500/10" },
-    { label: "Issued Bills", value: issuedBills?.length ?? 0, icon: <FileText size={18} />, href: "/billing", color: "text-green-400", bg: "bg-green-500/10" },
+    { label: "Order", value: ordersActive?.length ?? 0, icon: <ShoppingCart size={18} />, href: "/orders", color: "text-blue-400", bg: "bg-blue-500/10" },
+    { label: "Party Challan", value: ordersActive?.length ?? 0, icon: <FileText size={18} />, href: "/challans", color: "text-cyan-400", bg: "bg-cyan-500/10" },
+    { label: "Lot Creation", value: lotsInStorage?.length ?? 0, icon: <Layers size={18} />, href: "/lots", color: "text-purple-400", bg: "bg-purple-500/10" },
+    { label: "Stamping", value: ordersInProcess?.length ?? 0, icon: <Stamp size={18} />, href: "/stamping", color: "text-orange-400", bg: "bg-orange-500/10" },
   ];
 
   const quickLinks = [
@@ -97,38 +85,54 @@ export default function Dashboard() {
         <p className="text-muted-foreground text-sm mt-1">Textile Dyeing & Printing ERP — Factory Overview</p>
       </div>
 
-      {/* Alerts */}
-      {(pendingDispatch > 0 || unpaidBills > 0) && (
-        <div className="flex flex-col sm:flex-row gap-3">
-          {pendingDispatch > 0 && (
-            <button
-              onClick={() => router.push("/dispatch/new")}
-              className="flex-1 flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-left cursor-pointer hover:bg-emerald-500/20 transition-colors"
-            >
-              <PackageCheck size={18} className="text-emerald-400 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-emerald-300">{pendingDispatch} Finished Lot{pendingDispatch > 1 ? "s" : ""} Ready to Dispatch</p>
-                <p className="text-xs text-emerald-400/70">Click to create dispatch</p>
-              </div>
-            </button>
-          )}
-          {unpaidBills > 0 && (
-            <button
-              onClick={() => router.push("/billing")}
-              className="flex-1 flex items-center gap-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-left cursor-pointer hover:bg-orange-500/20 transition-colors"
-            >
-              <FileText size={18} className="text-orange-400 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-orange-300">{unpaidBills} Bill{unpaidBills > 1 ? "s" : ""} Awaiting Payment</p>
-                <p className="text-xs text-orange-400/70">Click to view bills</p>
-              </div>
-            </button>
-          )}
+                {/* Alerts */}
+                {(pendingDispatch > 0 || unpaidBills > 0) && (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {pendingDispatch > 0 && (
+                      <button
+                        onClick={() => router.push("/dispatch/new")}
+                        className="flex-1 flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-left cursor-pointer hover:bg-emerald-500/20 transition-colors"
+                      >
+                        <PackageCheck size={18} className="text-emerald-400 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-emerald-300">{pendingDispatch} Finished Lot{pendingDispatch > 1 ? "s" : ""} Ready to Dispatch</p>
+                          <p className="text-xs text-emerald-400/70">Click to create dispatch</p>
+                        </div>
+                      </button>
+                    )}
+                    {unpaidBills > 0 && (
+                      <button
+                        onClick={() => router.push("/billing")}
+                        className="flex-1 flex items-center gap-3 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-left cursor-pointer hover:bg-orange-500/20 transition-colors"
+                      >
+                        <FileText size={18} className="text-orange-400 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-orange-300">{unpaidBills} Bill{unpaidBills > 1 ? "s" : ""} Awaiting Payment</p>
+                          <p className="text-xs text-orange-400/70">Click to view bills</p>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                )}
+      {/* Live Pipeline - MOVED TO TOP */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Live Pipeline</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {pipelineStats.map((s) => (
+            <Card key={s.label} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push(s.href)}>
+              <CardContent className="flex flex-col items-center gap-2 py-4">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.bg} ${s.color}`}>{s.icon}</div>
+                <p className="text-xl font-bold">{s.value}</p>
+                <p className="text-xs text-muted-foreground text-center leading-tight">{s.label}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      )}
+      </div>
+
 
       {/* Master stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {loading
           ? Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)
           : masterStats.map((s) => (
@@ -142,22 +146,6 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             ))}
-      </div>
-
-      {/* Pipeline stats */}
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Live Pipeline</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {pipelineStats.map((s) => (
-            <Card key={s.label} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push(s.href)}>
-              <CardContent className="flex flex-col items-center gap-2 py-4">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.bg} ${s.color}`}>{s.icon}</div>
-                <p className="text-xl font-bold">{s.value}</p>
-                <p className="text-xs text-muted-foreground text-center leading-tight">{s.label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       </div>
 
       {/* Quick Actions */}

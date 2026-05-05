@@ -75,15 +75,15 @@ export default function OwnerDashboardInner() {
   };
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-6 md:space-y-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Owner Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Complete business overview — financials, production, and operations</p>
+          <h1 className="text-xl md:text-2xl font-bold">Owner Dashboard</h1>
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">Complete business overview — financials, production, and operations</p>
         </div>
         <button
           onClick={() => router.push("/owner/users")}
-          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted/30 transition-colors cursor-pointer"
+          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted/30 transition-colors cursor-pointer w-fit"
         >
           <Users className="w-4 h-4" /> Manage Users
         </button>
@@ -150,7 +150,7 @@ export default function OwnerDashboardInner() {
       {/* Bill Status Counters */}
       <section>
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Bill Status</h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {(["Draft", "Issued", "Paid"] as const).map((s) => (
             <Card key={s}>
               <CardContent className="flex flex-col items-center gap-1 py-4">
@@ -170,28 +170,30 @@ export default function OwnerDashboardInner() {
             {stats.recentDispatches.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">No dispatches yet.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-muted/30">
-                  <tr>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Dispatch No</th>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Date</th>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Party</th>
-                    <th className="text-right px-4 py-2 text-muted-foreground font-medium text-xs">Meter</th>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.recentDispatches.map((d, i) => (
-                    <tr key={d._id} className={`border-t border-border ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
-                      <td className="px-4 py-2 font-mono text-xs text-primary">{d.dispatchNo}</td>
-                      <td className="px-4 py-2 text-muted-foreground text-xs">{format(new Date(d.dispatchDate), "dd/MM/yy")}</td>
-                      <td className="px-4 py-2 font-medium text-xs">{d.partyName}</td>
-                      <td className="px-4 py-2 text-right text-xs">{d.finishedMeter.toLocaleString()}</td>
-                      <td className="px-4 py-2"><Badge variant="outline" className={dispatchStatusColors[d.status] ?? ""}>{d.status}</Badge></td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[520px]">
+                  <thead className="bg-muted/30">
+                    <tr>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Dispatch No</th>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Date</th>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Party</th>
+                      <th className="text-right px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Meter</th>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {stats.recentDispatches.map((d, i) => (
+                      <tr key={d._id} className={`border-t border-border ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                        <td className="px-4 py-2 font-mono text-xs text-primary whitespace-nowrap">{d.dispatchNo}</td>
+                        <td className="px-4 py-2 text-muted-foreground text-xs whitespace-nowrap">{format(new Date(d.dispatchDate), "dd/MM/yy")}</td>
+                        <td className="px-4 py-2 font-medium text-xs">{d.partyName}</td>
+                        <td className="px-4 py-2 text-right text-xs whitespace-nowrap">{d.finishedMeter.toLocaleString()}</td>
+                        <td className="px-4 py-2"><Badge variant="outline" className={dispatchStatusColors[d.status] ?? ""}>{d.status}</Badge></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -205,28 +207,30 @@ export default function OwnerDashboardInner() {
             {stats.recentBills.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">No bills yet.</p>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-muted/30">
-                  <tr>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Bill No</th>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Date</th>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Party</th>
-                    <th className="text-right px-4 py-2 text-muted-foreground font-medium text-xs">Total</th>
-                    <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.recentBills.map((b, i) => (
-                    <tr key={b._id} className={`border-t border-border ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
-                      <td className="px-4 py-2 font-mono text-xs text-primary">{b.billNo}</td>
-                      <td className="px-4 py-2 text-muted-foreground text-xs">{format(new Date(b.billDate), "dd/MM/yy")}</td>
-                      <td className="px-4 py-2 font-medium text-xs">{b.partyName}</td>
-                      <td className="px-4 py-2 text-right font-semibold text-xs text-green-400">{INR(b.totalAmount)}</td>
-                      <td className="px-4 py-2"><Badge variant="outline" className={billStatusColors[b.status] ?? ""}>{b.status}</Badge></td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[520px]">
+                  <thead className="bg-muted/30">
+                    <tr>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Bill No</th>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Date</th>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Party</th>
+                      <th className="text-right px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Total</th>
+                      <th className="text-left px-4 py-2 text-muted-foreground font-medium text-xs whitespace-nowrap">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {stats.recentBills.map((b, i) => (
+                      <tr key={b._id} className={`border-t border-border ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
+                        <td className="px-4 py-2 font-mono text-xs text-primary whitespace-nowrap">{b.billNo}</td>
+                        <td className="px-4 py-2 text-muted-foreground text-xs whitespace-nowrap">{format(new Date(b.billDate), "dd/MM/yy")}</td>
+                        <td className="px-4 py-2 font-medium text-xs">{b.partyName}</td>
+                        <td className="px-4 py-2 text-right font-semibold text-xs text-green-400 whitespace-nowrap">{INR(b.totalAmount)}</td>
+                        <td className="px-4 py-2"><Badge variant="outline" className={billStatusColors[b.status] ?? ""}>{b.status}</Badge></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>

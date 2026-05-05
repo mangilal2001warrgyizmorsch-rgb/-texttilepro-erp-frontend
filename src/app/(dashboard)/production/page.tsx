@@ -80,16 +80,14 @@ export default function FinishMeterEntryPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Info className="text-primary" /> Finish Meter Entry
-          </h1>
-          <p className="text-muted-foreground mt-1 text-base">
-            Track fabric measurements and shortages before dispatch.
-          </p>
-        </div>
+    <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto">
+      <div>
+        <h1 className="text-xl md:text-3xl font-bold flex items-center gap-2">
+          <Info className="text-primary" size={22} /> Finish Meter Entry
+        </h1>
+        <p className="text-muted-foreground mt-1 text-xs md:text-base">
+          Track fabric measurements and shortages before dispatch.
+        </p>
       </div>
 
       <Card className="shadow-sm border-primary/20">
@@ -145,7 +143,7 @@ export default function FinishMeterEntryPage() {
       {lotData && (
         <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
           <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="py-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+            <CardContent className="py-4 md:py-6 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
               <div className="space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Party Marka</p>
                 <p className="font-bold text-xl">{lotData.lot.marka}</p>
@@ -177,7 +175,7 @@ export default function FinishMeterEntryPage() {
             </div>
             
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[650px]">
                 <TableHeader className="bg-muted/20">
                   <TableRow>
                     <TableHead className="font-bold uppercase text-[10px] tracking-wider">Party Marka</TableHead>

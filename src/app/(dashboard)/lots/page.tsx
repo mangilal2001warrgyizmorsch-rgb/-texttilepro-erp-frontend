@@ -115,19 +115,19 @@ export default function LotsPage() {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-muted/5">
       {/* Header */}
-      <div className="p-6 pb-2 shrink-0">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-4 md:p-6 pb-2 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">
               Production Lots
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs md:text-sm text-muted-foreground">
               Manage and track production batches across the facility
             </p>
           </div>
           <Button
             onClick={() => setIsDialogOpen(true)}
-            className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 h-10 px-5 text-sm font-semibold rounded-xl transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+            className="gap-2 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 h-10 px-5 text-sm font-semibold rounded-xl transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] w-fit"
           >
             <Plus size={18} strokeWidth={2.5} />
             Create Lot
@@ -154,7 +154,7 @@ export default function LotsPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 border-l pl-3 border-border/50">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-l pl-3 border-border/50 shrink-0">
             {(
               ["All", "Pending", "InStorage", "InProcess", "Finished"] as const
             ).map((s) => (
@@ -168,7 +168,7 @@ export default function LotsPage() {
                 size="sm"
                 onClick={() => setStatusFilter(s === "All" ? undefined : s)}
                 className={cn(
-                  "h-8 px-3 rounded-lg text-xs font-semibold transition-all",
+                  "h-8 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap shrink-0",
                   statusFilter === (s === "All" ? undefined : s)
                     ? "shadow-md bg-primary"
                     : "text-muted-foreground hover:bg-muted",
@@ -185,7 +185,7 @@ export default function LotsPage() {
             ))}
           </div>
 
-          <div className="flex items-center bg-muted/40 rounded-lg p-0.5 border ml-auto">
+          <div className="flex items-center bg-muted/40 rounded-lg p-0.5 border ml-auto shrink-0">
             <button
               onClick={() => setViewMode("grid")}
               className={cn(
@@ -215,7 +215,7 @@ export default function LotsPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 pb-6">
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -329,7 +329,7 @@ export default function LotsPage() {
         ) : (
           <div className="bg-card border rounded-xl overflow-hidden shadow-sm flex flex-col">
             <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
-              <Table>
+              <Table className="min-w-[700px]">
                 <TableHeader className="bg-muted/50 sticky top-0 z-20">
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="text-xs font-bold uppercase tracking-wider h-11">Date</TableHead>

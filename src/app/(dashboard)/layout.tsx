@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
-import MobileNav from "@/components/layout/MobileNav";
+import MobileHeader from "@/components/layout/MobileHeader";
 import { useAuth } from "@/components/providers/auth";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -36,10 +36,13 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
-      <main className="flex-1 overflow-auto pb-16 md:pb-0">
-        {children}
-      </main>
-      <MobileNav />
+      <div className="flex flex-col flex-1 min-w-0">
+        <MobileHeader />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
+
