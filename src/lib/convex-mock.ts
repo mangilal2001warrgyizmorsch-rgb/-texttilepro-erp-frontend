@@ -73,7 +73,9 @@ export const api = {
   },
   stamping: {
     listStampable: { endpoint: "/stamping", method: "GET" },
+    searchTaka: { endpoint: "/stamping/search-taka", method: "GET" },
     stampTaka: { endpoint: "/stamping/stamp", method: "POST" },
+    stampMultiple: { endpoint: "/stamping/stamp-multiple", method: "POST" },
     unstampTaka: { endpoint: "/stamping/unstamp", method: "POST" },
     stampAll: { endpoint: "/stamping/stamp-all", method: "POST" },
   },
@@ -118,6 +120,10 @@ export const api = {
     create: { endpoint: "/vehicles", method: "POST" },
     delete: { endpoint: "/vehicles/:id", method: "DELETE" },
   },
+  production: {
+    getLotByNo: { endpoint: "/production/lot-by-no/:lotNo", method: "GET" },
+    saveFinishMeter: { endpoint: "/production/save-finish-meter", method: "POST" },
+  },
 } as const;
 
 function buildUrl(endpoint: string, args: any = {}) {
@@ -142,6 +148,9 @@ function buildUrl(endpoint: string, args: any = {}) {
   }
   if (args.partyId) {
     url = url.replace(":partyId", args.partyId);
+  }
+  if (args.lotNo) {
+    url = url.replace(":lotNo", args.lotNo);
   }
 
   // Add remaining args as query params if it's a GET request

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Users, Code2, Scissors, Star, ShoppingCart, FileText, Layers,
   MapPin, Stamp, Send, ClipboardList, Factory, Truck, Receipt,
-  LayoutDashboard, ShieldCheck, LogOut, ChevronRight,
+  LayoutDashboard, ShieldCheck, LogOut, ChevronRight, RefreshCw,
 } from "lucide-react";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useAuth } from "@/components/providers/auth";
@@ -42,12 +42,12 @@ const navGroups: { title: string; items: NavItem[]; ownerOnly?: boolean }[] = [
       { label: "Stamping", icon: <Stamp size={16} />, href: "/stamping" },
       { label: "Send to Process", icon: <Send size={16} />, href: "/process-issue" },
       { label: "Job Card", icon: <ClipboardList size={16} />, href: "/job-cards" },
-      { label: "Production Update", icon: <Factory size={16} />, href: "/production" },
+      { label: "Finish Meter Entry", icon: <RefreshCw size={16} />, href: "/production" },
     ],
   },
   {
     title: "Dispatch & Billing", items: [
-      { label: "Dispatch", icon: <Truck size={16} />, href: "/dispatch" },
+      { label: "Ready for Dispatch", icon: <Truck size={16} />, href: "/dispatch" },
       { label: "Billing", icon: <Receipt size={16} />, href: "/billing" },
     ],
   },

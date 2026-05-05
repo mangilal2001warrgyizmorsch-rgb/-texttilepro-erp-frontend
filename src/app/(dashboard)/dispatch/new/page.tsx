@@ -98,7 +98,7 @@ export default function NewDispatchInner() {
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild><Link href="/dispatch"><ArrowLeft className="w-4 h-4" /></Link></Button>
         <div>
-          <h1 className="text-2xl font-bold">New Dispatch</h1>
+          <h1 className="text-2xl font-bold">Ready for Dispatch</h1>
           <p className="text-sm text-muted-foreground">Dispatch a finished lot to the party</p>
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function NewDispatchInner() {
         <div className="flex justify-end gap-3">
           <Button type="button" variant="secondary" asChild><Link href="/dispatch">Cancel</Link></Button>
           <Button type="submit" disabled={submitting || !selectedLotId}>
-            {submitting ? "Creating..." : "Create Dispatch"}
+            {submitting ? "Processing..." : "Confirm Dispatch"}
           </Button>
         </div>
       </form>

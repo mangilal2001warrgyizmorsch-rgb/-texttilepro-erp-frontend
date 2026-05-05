@@ -74,14 +74,14 @@ export default function Dashboard() {
     { label: "In Process", value: ordersInProcess?.length ?? 0, icon: <ClipboardList size={18} />, href: "/orders", color: "text-yellow-400", bg: "bg-yellow-500/10" },
     { label: "Lots in Storage", value: lotsInStorage?.length ?? 0, icon: <Layers size={18} />, href: "/lots", color: "text-cyan-400", bg: "bg-cyan-500/10" },
     { label: "Finished Lots", value: lotsFinished?.length ?? 0, icon: <PackageCheck size={18} />, href: "/lots", color: "text-emerald-400", bg: "bg-emerald-500/10" },
-    { label: "Dispatched", value: dispatched?.length ?? 0, icon: <Truck size={18} />, href: "/dispatch", color: "text-blue-400", bg: "bg-blue-500/10" },
+    { label: "Ready for Dispatch", value: dispatched?.length ?? 0, icon: <Truck size={18} />, href: "/dispatch", color: "text-blue-400", bg: "bg-blue-500/10" },
     { label: "Draft Bills", value: draftBills?.length ?? 0, icon: <FileText size={18} />, href: "/billing", color: "text-orange-400", bg: "bg-orange-500/10" },
     { label: "Issued Bills", value: issuedBills?.length ?? 0, icon: <FileText size={18} />, href: "/billing", color: "text-green-400", bg: "bg-green-500/10" },
   ];
 
   const quickLinks = [
     { label: "New Order", icon: <ShoppingCart size={18} />, href: "/orders/new", color: "bg-primary text-primary-foreground" },
-    { label: "New Dispatch", icon: <Truck size={18} />, href: "/dispatch/new", color: "bg-blue-600 text-white" },
+    { label: "Ready for Dispatch", icon: <Truck size={18} />, href: "/dispatch/new", color: "bg-blue-600 text-white" },
     { label: "New Bill", icon: <FileText size={18} />, href: "/billing/new", color: "bg-emerald-600 text-white" },
     { label: "Location Map", icon: <MapPin size={18} />, href: "/location-dashboard", color: "bg-slate-600 text-white" },
   ];
@@ -193,7 +193,7 @@ export default function Dashboard() {
                 "Send to Process",
                 "Job Card",
                 "Production",
-                "Dispatch",
+                "Ready for Dispatch",
                 "Billing",
               ].map((step, i, arr) => (
                 <span key={step} className="flex items-center gap-2">

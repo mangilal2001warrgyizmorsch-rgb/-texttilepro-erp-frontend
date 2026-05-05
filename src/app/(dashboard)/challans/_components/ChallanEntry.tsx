@@ -1119,8 +1119,28 @@ export function ChallanEntry({ initialData, initialOrderId, onSuccess }: Challan
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Challan Issue</AlertDialogTitle>
-              <AlertDialogDescription className="text-base text-foreground font-medium py-2">
-                Check Party Name, GST No, Quality, Pcs, Meter etc... Then Confirm
+              <AlertDialogDescription asChild>
+                <div className="text-base text-foreground font-medium py-2">
+                  <div className="space-y-2 mt-2 p-4 rounded-lg bg-muted/30 border">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <span className="text-muted-foreground uppercase text-[10px] font-bold">Party</span>
+                      <span className="font-semibold text-right">{form.party || "-"}</span>
+                      
+                      <span className="text-muted-foreground uppercase text-[10px] font-bold">GST No</span>
+                      <span className="font-semibold text-right">{form.gstin_no || "-"}</span>
+                      
+                      <span className="text-muted-foreground uppercase text-[10px] font-bold">Quality</span>
+                      <span className="font-semibold text-right">{form.quality || "-"}</span>
+                      
+                      <span className="text-muted-foreground uppercase text-[10px] font-bold">Total Pcs (Taka)</span>
+                      <span className="font-bold text-right text-primary">{form.taka}</span>
+                      
+                      <span className="text-muted-foreground uppercase text-[10px] font-bold">Total Meter</span>
+                      <span className="font-bold text-right text-primary">{form.meter} m</span>
+                    </div>
+                  </div>
+                  <p className="mt-4 text-xs text-muted-foreground text-center">Check details carefully before confirming.</p>
+                </div>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

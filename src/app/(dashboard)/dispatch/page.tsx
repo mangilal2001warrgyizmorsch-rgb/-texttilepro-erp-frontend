@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
-import { Plus, Search, Truck } from "lucide-react";
+import { Plus, Search, Truck, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type StatusFilter = "all" | "Pending" | "Dispatched" | "Billed";
 
@@ -21,20 +22,21 @@ const STATUS_COLORS: Record<string, string> = {
   Billed: "bg-green-500/20 text-green-400 border-green-500/30",
 };
 
-function DispatchListInner() {
+export default function ReadyForDispatchPage() {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
 
-  const dispatches = useQuery(
-    api.dispatches.list,
-    filter === "all" ? {} : { status: filter }
-  );
+  // Use lots list for "Ready for Dispatch" view
+  const lots = useQuery(api.lots.list, { status: "Finished" });
+  const dispatches = useQuery(api.dispatches.list, {});
 
-  const filtered = (dispatches ?? []).filter((d) => {
+  const data = filter === "Pending" ? (lots ?? []) : (dispatches ?? []);
+
+  const filtered = data.filter((d: any) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      d.dispatchNo.toLowerCase().includes(q) ||
+      (d.dispatchNo?.toLowerCase().includes(q) || "") ||
       d.partyName.toLowerCase().includes(q) ||
       d.marka.toLowerCase().includes(q) ||
       d.lotNo.toLowerCase().includes(q)
@@ -48,13 +50,13 @@ function DispatchListInner() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Dispatch</h1>
-          <p className="text-sm text-muted-foreground mt-1">Manage finished lot dispatches</p>
+          <h1 className="text-2xl font-bold text-foreground">Ready for Dispatch</h1>
+          <p className="text-sm text-muted-foreground mt-1">Manage lots ready to be sent to parties</p>
         </div>
         <Button asChild>
           <Link href="/dispatch/new">
-            <Plus className="w-4 h-4 mr-2" />
-            New Dispatch
+            <Truck className="w-4 h-4 mr-2" />
+            Ready for Dispatch
           </Link>
         </Button>
       </div>
@@ -64,7 +66,7 @@ function DispatchListInner() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search dispatch no, party, marka..."
+            placeholder="Search party, marka, lot..."
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -86,7 +88,7 @@ function DispatchListInner() {
       </div>
 
       {/* Table */}
-      {dispatches === undefined ? (
+      {data === undefined ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
         </div>
@@ -94,54 +96,52 @@ function DispatchListInner() {
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon"><Truck /></EmptyMedia>
-            <EmptyTitle>No dispatches found</EmptyTitle>
-            <EmptyDescription>Create a new dispatch from a finished lot.</EmptyDescription>
+            <EmptyTitle>No records found</EmptyTitle>
+            <EmptyDescription>All finished lots appear here for dispatching.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/30">
-              <tr>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Dispatch No</th>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Date</th>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Party</th>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Lot</th>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Marka</th>
-                <th className="text-right px-4 py-3 text-muted-foreground font-medium">Meter</th>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Mode</th>
-                <th className="text-left px-4 py-3 text-muted-foreground font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((d, i) => (
-                <tr key={d._id} className={`border-t border-border hover:bg-muted/20 cursor-pointer transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}>
-                  <td className="px-4 py-3">
-                    <Link href={`/dispatch/${d._id}`} className="font-mono text-primary hover:underline">{d.dispatchNo}</Link>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{format(new Date(d.dispatchDate), "dd/MM/yyyy")}</td>
-                  <td className="px-4 py-3 font-medium">{d.partyName}</td>
-                  <td className="px-4 py-3 font-mono text-xs">{d.lotNo}</td>
-                  <td className="px-4 py-3">{d.marka}</td>
-                  <td className="px-4 py-3 text-right">{d.finishedMeter.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{d.shippingMode}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="outline" className={STATUS_COLORS[d.status]}>{d.status}</Badge>
-                  </td>
-                </tr>
+        <div className="rounded-lg border border-border overflow-hidden shadow-sm">
+          <Table>
+            <TableHeader className="bg-muted/30">
+              <TableRow>
+                <TableHead>Party Name</TableHead>
+                <TableHead>Master Name</TableHead>
+                <TableHead>Marka</TableHead>
+                <TableHead>Lot No</TableHead>
+                <TableHead>Quality</TableHead>
+                <TableHead className="text-right">Taka</TableHead>
+                <TableHead className="text-right">Meter</TableHead>
+                {filter !== "Pending" && <TableHead>Status</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((d: any) => (
+                <TableRow key={d._id} className="hover:bg-muted/20 transition-colors">
+                  <TableCell className="font-medium">{d.partyName}</TableCell>
+                  <TableCell>{d.masterName || "-"}</TableCell>
+                  <TableCell>{d.marka}</TableCell>
+                  <TableCell className="font-mono text-primary font-bold">{d.lotNo}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{d.qualityName}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right">{d.totalTaka || d.noBales || "-"}</TableCell>
+                  <TableCell className="text-right font-mono font-bold">
+                    {(d.finishedMeter || d.totalMeter || 0).toLocaleString()}m
+                  </TableCell>
+                  {filter !== "Pending" && (
+                    <TableCell>
+                      <Badge variant="outline" className={STATUS_COLORS[d.status || "Pending"]}>
+                        {d.status || "Pending"}
+                      </Badge>
+                    </TableCell>
+                  )}
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
-  );
-}
-
-export default function DispatchListPage() {
-  return (
-    
-      <DispatchListInner />
-    
   );
 }
