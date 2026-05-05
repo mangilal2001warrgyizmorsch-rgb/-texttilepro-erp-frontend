@@ -24,25 +24,40 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
-  PendingChallan: "bg-yellow-100 text-yellow-700",
-  ChallanIssued: "bg-blue-100 text-blue-700",
-  LotCreated: "bg-purple-100 text-purple-700",
-  InProcess: "bg-orange-100 text-orange-700",
-  Completed: "bg-green-100 text-green-700",
-  Dispatched: "bg-gray-100 text-gray-600",
+  "Order Created": "bg-slate-100 text-slate-600 border-slate-200",
+  "Challan Created": "bg-sky-50 text-sky-600 border-sky-200",
+  "Lot Created": "bg-indigo-50 text-indigo-600 border-indigo-200",
+  "Stamping Done": "bg-pink-50 text-pink-600 border-pink-200",
+  "In Process": "bg-orange-50 text-orange-700 border-orange-200",
+  "Finish Meter Updated": "bg-emerald-50 text-emerald-600 border-emerald-200",
+  "Ready for Dispatch": "bg-cyan-50 text-cyan-600 border-cyan-200",
+  "Dispatched / Billed": "bg-violet-100 text-violet-700 border-violet-200",
+  
+  // Legacy Statuses
+  "draft": "bg-slate-100 text-slate-600 border-slate-200",
+  "ChallanIssued": "bg-sky-50 text-sky-600 border-sky-200",
+  "LotCreated": "bg-indigo-50 text-indigo-600 border-indigo-200",
+  "Dispatched": "bg-violet-100 text-violet-700 border-violet-200",
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: "Draft",
-  PendingChallan: "Pending Challan",
-  ChallanIssued: "Challan Issued",
-  LotCreated: "Lot Created",
-  InProcess: "In Process",
-  Completed: "Completed",
-  Dispatched: "Dispatched",
+  "Order Created": "Order Created",
+  "Challan Created": "Challan Created",
+  "Lot Created": "Lot Created",
+  "Stamping Done": "Stamping Done",
+  "In Process": "In Process",
+  "Finish Meter Updated": "Finish Meter Updated",
+  "Ready for Dispatch": "Ready for Dispatch",
+  "Dispatched / Billed": "Dispatched / Billed",
+
+  // Legacy Statuses
+  "draft": "Order Created",
+  "ChallanIssued": "Challan Created",
+  "LotCreated": "Lot Created",
+  "Dispatched": "Dispatched / Billed",
 };
 
 interface OrderDetailModalProps {
@@ -66,16 +81,18 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
               Order Detail: {order.challanNo || "N/A"}
             </DialogTitle>
             <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs px-2"
-                onClick={() => router.push(`/orders/${order._id}/edit`)}
-              >
-                <Edit2 size={12} className="mr-1" /> Edit
-              </Button>
-              <Badge className={STATUS_COLORS[order.status]}>
-                {STATUS_LABELS[order.status]}
+              {(order.status === "Order Created" || order.status === "draft") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs px-2"
+                  onClick={() => router.push(`/orders/${order._id}/edit`)}
+                >
+                  <Edit2 size={12} className="mr-1" /> Edit
+                </Button>
+              )}
+              <Badge variant="outline" className={cn("text-[10px] font-bold uppercase py-0 px-2 rounded-md border-transparent", STATUS_COLORS[order.status])}>
+                {STATUS_LABELS[order.status] || order.status}
               </Badge>
             </div>
           </div>
@@ -228,16 +245,18 @@ export function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
         </div>
 
         <DialogFooter className="p-6 border-t gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="h-9 px-4">
             Close
           </Button>
-          <Button
-            onClick={() => router.push(`/challans/new/${order._id}`)}
-            className="gap-2 bg-green-600 hover:bg-green-700 text-white"
-          >
-            <CheckCircle size={16} />
-            Create Challan
-          </Button>
+          {(order.status === "Order Created" || order.status === "draft") && (
+            <Button
+              onClick={() => router.push(`/challans/new/${order._id}`)}
+              className="gap-2 bg-green-600 hover:bg-green-700 text-white h-9 px-4"
+            >
+              <CheckCircle size={16} />
+              Create Challan
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

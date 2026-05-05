@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface DraftOrdersDialogProps {
   open: boolean;
@@ -25,8 +26,8 @@ export default function DraftOrdersDialog({
   const [search, setSearch] = useState("");
 
   const { data: orders, isLoading } = useQuery({
-    queryKey: ["orders", "draft", search],
-    queryFn: () => api.get<any[]>("/orders?status=draft"),
+    queryKey: ["orders", "pending-challan", search],
+    queryFn: () => api.get<any[]>("/orders?status=Order Created,draft"),
     enabled: open,
   });
 
@@ -98,8 +99,16 @@ export default function DraftOrdersDialog({
                     <TableCell className="text-sm text-right">{order.totalTaka || "-"}</TableCell>
                     <TableCell className="text-sm text-right">{order.totalMeter || "-"}</TableCell>
                     <TableCell className="text-center">
-                      <Badge variant="outline" className="text-[10px] uppercase bg-gray-100 text-gray-700">
-                        {order.status || "Draft"}
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-[10px] font-bold uppercase py-0 px-2 rounded-md border-transparent",
+                          (order.status === "Order Created" || order.status === "draft") 
+                            ? "bg-slate-100 text-slate-600 border-slate-200" 
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {order.status === "draft" ? "Order Created" : (order.status || "Order Created")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">

@@ -36,6 +36,8 @@ export default function StampingPage() {
     weaverChNo: "",
     weaverMarka: "",
     baleNo: "",
+    lotNo: "",
+    takaNo: "",
   });
   const [selectedTaka, setSelectedTaka] = useState<any[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -167,9 +169,15 @@ export default function StampingPage() {
                   ) : (
                     pendingLots.map((lot: any) => (
                       <TableRow key={lot._id} className="hover:bg-muted/50 cursor-pointer" onClick={() => {
-                        setSearchFilters({...searchFilters, takaMarka: "", weaverChNo: "", weaverMarka: "", baleNo: ""});
+                        setSearchFilters({
+                          takaMarka: "", 
+                          weaverChNo: "", 
+                          weaverMarka: "", 
+                          baleNo: "",
+                          lotNo: lot.lotNo,
+                          takaNo: ""
+                        });
                         setActiveTab("search");
-                        // Ideally we would trigger a search for this lot here
                       }}>
                         <TableCell className="whitespace-nowrap">
                           {lot.date ? format(new Date(lot.date), "dd/MM/yyyy") : "N/A"}
@@ -181,7 +189,7 @@ export default function StampingPage() {
                           <Badge variant="outline" className="font-medium">{lot.qualityName}</Badge>
                         </TableCell>
                         <TableCell className="text-right font-medium">{lot.totalTaka}</TableCell>
-                        <TableCell className="text-right font-medium">{lot.totalMeter}m</TableCell>
+                        <TableCell className="text-right font-medium">{lot.totalMeter}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -197,11 +205,31 @@ export default function StampingPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="takaMarka">Taka Marka</Label>
+                    <Label htmlFor="lotNo">Lot No</Label>
+                    <Input
+                      id="lotNo"
+                      name="lotNo"
+                      placeholder="e.g. L-123"
+                      value={searchFilters.lotNo}
+                      onChange={handleSearchChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="takaNo">Taka No</Label>
+                    <Input
+                      id="takaNo"
+                      name="takaNo"
+                      placeholder="e.g. 90653"
+                      value={searchFilters.takaNo}
+                      onChange={handleSearchChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="takaMarka">Taka Marka / Marka</Label>
                     <Input
                       id="takaMarka"
                       name="takaMarka"
-                      placeholder="e.g. TM-001"
+                      placeholder="e.g. M/S 2"
                       value={searchFilters.takaMarka}
                       onChange={handleSearchChange}
                     />
@@ -293,7 +321,7 @@ export default function StampingPage() {
                               <TableCell>{taka.takaNo}</TableCell>
                               <TableCell>{taka.takaMarka || "-"}</TableCell>
                               <TableCell>{taka.weaverChNo || "-"}</TableCell>
-                              <TableCell className="text-right font-mono font-bold">{taka.takaMeter}m</TableCell>
+                              <TableCell className="text-right font-mono font-bold">{taka.takaMeter}</TableCell>
                             </TableRow>
                           );
                         })
@@ -344,7 +372,7 @@ export default function StampingPage() {
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">Marka: <span className="text-foreground font-medium">{taka.partyMarka}</span></span>
-                          <span className="flex items-center gap-1">Meter: <span className="text-foreground font-medium font-mono">{taka.takaMeter}m</span></span>
+                          <span className="flex items-center gap-1">Meter: <span className="text-foreground font-medium font-mono">{taka.takaMeter}</span></span>
                         </div>
                       </div>
                       <Button 
@@ -390,7 +418,7 @@ export default function StampingPage() {
                   <div className="flex justify-between items-center text-sm border-t pt-3">
                     <span className="text-muted-foreground font-bold uppercase text-[10px]">Total Meter</span>
                     <span className="font-bold text-foreground">
-                      {selectedTaka.reduce((sum, t) => sum + (t.takaMeter || 0), 0).toFixed(2)} m
+                      {selectedTaka.reduce((sum, t) => sum + (t.takaMeter || 0), 0).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm border-t pt-3">

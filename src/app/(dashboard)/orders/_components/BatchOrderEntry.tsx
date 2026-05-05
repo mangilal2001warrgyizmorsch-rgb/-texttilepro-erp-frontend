@@ -1159,31 +1159,76 @@ export function BatchOrderEntry({
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">
+                  Party GST No.
+                </Label>
+                <Input
+                  value={form.partyGstin}
+                  onChange={(e) => {
+                    const gstin = e.target.value.toUpperCase();
+                    updateOrderObject({ partyGstin: gstin });
+                    
+                    // Auto-fill logic
+                    if (gstin.length >= 15) {
+                      const match = (masterAccounts ?? []).find(
+                        (a) => (a.gstin || "").trim().toUpperCase() === gstin
+                      );
+                      if (match) {
+                        updateOrderObject({
+                          partyId: match._id,
+                          partyName: match.accountName || "",
+                          partyAddress: match.address || "",
+                          address: match.address || "",
+                          codeMasterId: "",
+                          marka: "",
+                        });
+                        toast.success(`Found Party: ${match.accountName}`);
+                      }
+                    }
+                  }}
+                  placeholder="Enter GSTIN"
+                  className="font-mono uppercase"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">
                   Party Name
                 </Label>
-                <Select
-                  value={form.partyId || undefined}
-                  onValueChange={(v) => {
-                    const p = masterAccounts.find((x) => x._id === v);
-                    updateOrderObject({
-                      partyId: v,
-                      partyName: p?.accountName || "",
-                      codeMasterId: "",
-                      marka: "",
-                    });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select party..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {masterAccounts.map((m) => (
-                      <SelectItem key={m._id} value={m._id}>
-                        {m.accountName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select
+                    value={form.partyId || undefined}
+                    onValueChange={(v) => {
+                      const p = masterAccounts.find((x) => x._id === v);
+                      updateOrderObject({
+                        partyId: v,
+                        partyName: p?.accountName || "",
+                        partyGstin: p?.gstin || form.partyGstin,
+                        partyAddress: p?.address || form.partyAddress,
+                        address: p?.address || form.address,
+                        codeMasterId: "",
+                        marka: "",
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select party..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {masterAccounts.map((m) => (
+                        <SelectItem key={m._id} value={m._id}>
+                          {m.accountName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!form.partyId && (
+                    <Input
+                      placeholder="Or enter new name..."
+                      value={form.partyName}
+                      onChange={(e) => updateField("partyName", e.target.value)}
+                      className="flex-1"
+                    />
+                  )}
+                </div>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase text-muted-foreground">

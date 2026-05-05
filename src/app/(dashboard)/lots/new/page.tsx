@@ -149,12 +149,8 @@ export default function NewLotPage() {
     }
   }, [computedTotalTaka, computedTotalMeter]);
 
-  // Auto-fill from challan, order, and ALL masters
   useEffect(() => {
     if (!challan) return;
-
-    // Don't overwrite user edits after table is already filled
-    if (takaDetails.length > 0) return;
 
     // Find matching account (Firm)
     const firmAccount = accounts.find(
@@ -178,81 +174,66 @@ export default function NewLotPage() {
         q.name === order?.qualityName,
     );
 
+    // 1. Populate Form Fields (Always try to fill if current value is empty or default)
     setForm((prev) => ({
       ...prev,
-      firm:
+      firm: prev.firm ||
         firmAccount?.name ||
         challan.firm ||
         challan.firmName ||
         order?.firmName ||
         "",
-      challanNo: challan.challan_no || challan.challanNo || "",
-      challanDate: (challan.challan_date || challan.date || today).split(
-        "T",
-      )[0],
-      party:
+      challanNo: prev.challanNo || challan.challan_no || challan.challanNo || "",
+      challanDate: prev.challanDate !== today ? prev.challanDate : (challan.challan_date || challan.date || today).split("T")[0],
+      party: prev.party ||
         challan.party ||
         order?.partyName ||
         firmAccount?.name ||
         "",
-      marka: challan.marka || order?.marka || "",
-      gstinNo: firmAccount?.gstin || challan.gstin_no || order?.gstin || "",
-      address:
-        firmAccount?.address || challan.address || order?.address || "",
-      masterAc: order?.codeMasterId?.masterName || order?.brokerName || "",
-      quality:
+      marka: prev.marka || challan.marka || order?.marka || "",
+      gstinNo: prev.gstinNo || firmAccount?.gstin || challan.gstin_no || order?.gstin || "",
+      address: prev.address || firmAccount?.address || challan.address || order?.address || "",
+      masterAc: prev.masterAc || order?.codeMasterId?.masterName || order?.brokerName || challan.masterName || "",
+      quality: prev.quality ||
         qualityMaster?.name ||
         challan.quality ||
         challan.qualityName ||
         order?.qualityName ||
         "",
-      hsnCode:
-        qualityMaster?.hsnCode || challan.hsnCode || order?.hsnCode || "4507",
-      taka: challan.taka || challan.totalTaka || 0,
-      meter: challan.meter || challan.totalMeter || 0,
-      lrNo: challan.lr_no || order?.lrNo || "",
-      lrDate:
-        challan.lr_date || order?.lrDate
-          ? (challan.lr_date || order.lrDate).split("T")[0]
-          : "",
-      transpoter:
-        transportAccount?.name ||
-        challan.transpoter ||
-        order?.transporterName ||
-        "",
-      weight: challan.weight || order?.weight || 0,
-      chadhti: challan.chadhti || order?.chadhti || 0,
-      width: challan.width || order?.width || 0,
-      remark: challan.remark || order?.remark || "",
+      hsnCode: prev.hsnCode || qualityMaster?.hsnCode || challan.hsnCode || order?.hsnCode || "4507",
+      taka: prev.taka || challan.taka || challan.totalTaka || 0,
+      meter: prev.meter || challan.meter || challan.totalMeter || 0,
+      lrNo: prev.lrNo || challan.lr_no || order?.lrNo || "",
+      lrDate: prev.lrDate || (challan.lr_date || order?.lrDate ? (challan.lr_date || order.lrDate).split("T")[0] : ""),
+      transpoter: prev.transpoter || transportAccount?.name || challan.transpoter || order?.transporterName || "",
+      weight: prev.weight || challan.weight || order?.weight || 0,
+      chadhti: prev.chadhti || challan.chadhti || order?.chadhti || 0,
+      width: prev.width || challan.width || order?.width || 0,
+      remark: prev.remark || challan.remark || order?.remark || "",
     }));
 
-    const tableSource = Array.isArray(challan?.table) && challan.table.length > 0
-      ? challan.table
-      : Array.isArray(challan?.takaDetails) && challan.takaDetails.length > 0
-      ? challan.takaDetails
-      : Array.isArray(order?.takaDetails) && order.takaDetails.length > 0
-      ? order.takaDetails
-      : [];
+    // 2. Populate Taka Details (Only if empty)
+    if (takaDetails.length === 0) {
+      const tableSource = Array.isArray(challan?.table) && challan.table.length > 0
+        ? challan.table
+        : Array.isArray(challan?.takaDetails) && challan.takaDetails.length > 0
+        ? challan.takaDetails
+        : Array.isArray(order?.takaDetails) && order.takaDetails.length > 0
+        ? order.takaDetails
+        : [];
 
-    if (tableSource.length > 0) {
-      setTakaDetails(
-        tableSource.map((t: any) => ({
-          tn: Number(t.tn ?? t.takaNo ?? 0) || 0,
-          meter: Number(t.meter ?? 0),
-          balanceMtr: Number(t.meter ?? 0),
-        })),
-      );
-    } else if (challan.taka || challan.totalTaka || order?.totalTaka) {
-      const count = Number(
-        challan.taka || challan.totalTaka || order?.totalTaka || 0,
-      );
-      setTakaDetails(
-        Array.from({ length: count }).map(() => ({
-          tn: 0,
-          meter: 0,
-          balanceMtr: 0,
-        })),
-      );
+      if (tableSource.length > 0) {
+        setTakaDetails(
+          tableSource.map((t: any) => ({
+            tn: Number(t.tn ?? t.takaNo ?? 0) || 0,
+            meter: Number(t.meter ?? 0),
+            balanceMtr: Number(t.meter ?? 0),
+          })),
+        );
+      } else if (challan.taka || challan.totalTaka || order?.totalTaka) {
+        const count = Number(challan.taka || challan.totalTaka || order?.totalTaka || 0);
+        setTakaDetails(Array.from({ length: count }).map(() => ({ tn: 0, meter: 0, balanceMtr: 0 })));
+      }
     }
   }, [challan, order, accounts, qualities, weavers, takaDetails.length, today]);
 

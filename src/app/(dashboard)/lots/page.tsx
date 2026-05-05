@@ -49,11 +49,12 @@ import PendingChallansDialog from "@/components/PendingChallansDialog";
 import { cn } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
-  InStorage: "bg-slate-100 text-slate-700",
-  InProcess: "bg-amber-100 text-amber-700",
-  Finished: "bg-emerald-100 text-emerald-700",
-  Dispatched: "bg-purple-100 text-purple-700",
-  Pending: "bg-blue-100 text-blue-700",
+  InStorage: "bg-sky-50 text-sky-600 border-sky-200",
+  InProcess: "bg-orange-50 text-orange-700 border-orange-200",
+  Finished: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  Dispatched: "bg-violet-50 text-violet-600 border-violet-200",
+  Pending: "bg-slate-50 text-slate-600 border-slate-200",
+  Active: "bg-sky-50 text-sky-600 border-sky-200",
 };
 
 export default function LotsPage() {
