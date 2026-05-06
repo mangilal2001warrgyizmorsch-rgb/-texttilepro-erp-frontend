@@ -121,7 +121,8 @@ export const api = {
     delete: { endpoint: "/vehicles/:id", method: "DELETE" },
   },
   production: {
-    getLotByNo: { endpoint: "/production/lot-by-no/:lotNo", method: "GET" },
+    list: { endpoint: "/production", method: "GET" },
+    getLotByNo: { endpoint: "/production/lot-by-no", method: "GET" },
     saveFinishMeter: { endpoint: "/production/save-finish-meter", method: "POST" },
   },
   employees: {
@@ -134,33 +135,31 @@ function buildUrl(endpoint: string, args: any = {}) {
   let url = endpoint;
   const queryParams = new URLSearchParams();
   
-  // Replace path params
-  if (args.id) {
-    url = url.replace(":id", args.id);
-  }
-  if (args.accountId) {
-    url = url.replace(":accountId", args.accountId);
-  }
-  if (args.orderId) {
-    url = url.replace(":orderId", args.orderId);
-  }
-  if (args.challanId) {
-    url = url.replace(":challanId", args.challanId);
-  }
-  if (args.lotId) {
-    url = url.replace(":lotId", args.lotId);
-  }
-  if (args.partyId) {
-    url = url.replace(":partyId", args.partyId);
-  }
-  if (args.lotNo) {
-    url = url.replace(":lotNo", args.lotNo);
+  // Track which args are consumed as path params
+  const consumedKeys = new Set<string>();
+  
+  // Replace path params only if they exist in the URL template
+  const pathParams: Record<string, string> = {
+    id: ":id",
+    accountId: ":accountId",
+    orderId: ":orderId",
+    challanId: ":challanId",
+    lotId: ":lotId",
+    partyId: ":partyId",
+    lotNo: ":lotNo",
+  };
+  
+  for (const [key, placeholder] of Object.entries(pathParams)) {
+    if (args[key] && url.includes(placeholder)) {
+      url = url.replace(placeholder, encodeURIComponent(args[key]));
+      consumedKeys.add(key);
+    }
   }
 
-  // Add remaining args as query params if it's a GET request
+  // Add remaining args as query params (skip consumed path params and empty strings)
   if (args && typeof args === "object") {
     for (const key in args) {
-      if (!["id", "accountId", "orderId", "challanId", "lotId", "partyId"].includes(key) && args[key] !== undefined) {
+      if (!consumedKeys.has(key) && args[key] !== undefined && args[key] !== "") {
         queryParams.append(key, String(args[key]));
       }
     }

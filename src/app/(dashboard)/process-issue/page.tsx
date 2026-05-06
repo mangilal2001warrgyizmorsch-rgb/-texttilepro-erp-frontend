@@ -43,6 +43,7 @@ function NewProcessIssueDialog({
   const [machineNo, setMachineNo] = useState("");
   const [operatorName, setOperatorName] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [processType, setProcessType] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
 
   const selectedLot = lots?.find((l) => l._id === selectedLotId);
@@ -50,8 +51,8 @@ function NewProcessIssueDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLotId || !selectedLot) return;
-    if (!selectedLot.processType) {
-      toast.error("Lot has no process type set. Edit the lot first.");
+    if (!processType) {
+      toast.error("Please select a process type.");
       return;
     }
     setSubmitting(true);
@@ -64,7 +65,7 @@ function NewProcessIssueDialog({
         partyName: selectedLot.partyName,
         marka: selectedLot.marka,
         qualityName: selectedLot.qualityName,
-        processType: selectedLot.processType,
+        processType: processType,
         totalMeter: selectedLot.balanceMeter,
         machineNo: machineNo || undefined,
         operatorName: operatorName || undefined,
@@ -72,7 +73,7 @@ function NewProcessIssueDialog({
       });
       toast.success("Process Issue created");
       onClose();
-      router.push(`/process-issue/${id}`);
+      router.push(`/process-issue/${id._id || id}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to create issue";
       toast.error(msg);
@@ -97,7 +98,12 @@ function NewProcessIssueDialog({
             <Label>Select Lot (InStorage) *</Label>
             <Select
               value={selectedLotId}
-              onValueChange={(v) => setSelectedLotId(v as string)}
+              onValueChange={(v) => {
+                setSelectedLotId(v as string);
+                const lot = lots?.find((l) => l._id === v);
+                if (lot?.processType) setProcessType(lot.processType);
+                else setProcessType("");
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder={lots === undefined ? "Loading…" : "Select a lot"} />
@@ -116,15 +122,27 @@ function NewProcessIssueDialog({
           </div>
 
           {selectedLot && (
-            <div className="bg-muted/40 rounded-lg p-3 grid grid-cols-2 gap-2 text-sm">
-              <span className="text-muted-foreground">Process Type</span>
-              <span className="font-medium text-foreground">{selectedLot.processType ?? "Not set"}</span>
+            <div className="bg-muted/40 rounded-lg p-3 grid grid-cols-2 gap-2 text-sm mb-2">
               <span className="text-muted-foreground">Meter to Process</span>
               <span className="font-medium text-foreground">{selectedLot.balanceMeter}m</span>
               <span className="text-muted-foreground">Quality</span>
               <span className="font-medium text-foreground">{selectedLot.qualityName || "—"}</span>
             </div>
           )}
+
+          <div className="space-y-1.5">
+            <Label>Process Type *</Label>
+            <Select value={processType} onValueChange={setProcessType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select Process Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Dyeing">Dyeing</SelectItem>
+                <SelectItem value="Printing">Printing</SelectItem>
+                <SelectItem value="Both">Both</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

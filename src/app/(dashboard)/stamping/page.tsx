@@ -86,12 +86,12 @@ export default function StampingPage() {
 
   const toggleSelection = (taka: any) => {
     const isSelected = selectedTaka.some(
-      (s) => s.orderId === taka.orderId && s.takaNo === taka.takaNo
+      (s) => s.orderId === taka.orderId && s.takaIndex === taka.takaIndex
     );
     if (isSelected) {
       setSelectedTaka(
         selectedTaka.filter(
-          (s) => !(s.orderId === taka.orderId && s.takaNo === taka.takaNo)
+          (s) => !(s.orderId === taka.orderId && s.takaIndex === taka.takaIndex)
         )
       );
     } else {
@@ -104,7 +104,7 @@ export default function StampingPage() {
     try {
       const stampman = employees?.find((e: any) => e._id === selectedStampmanId);
       await stampMultiple({
-        items: selectedTaka.map((s) => ({ orderId: s.orderId, takaNo: s.takaNo })),
+        items: selectedTaka.map((s) => ({ orderId: s.orderId, takaIndex: s.takaIndex })),
         stampmanId: stampman?._id,
         stampmanName: stampman?.employeeName,
         stampmanCode: stampman?.empCode,
@@ -441,11 +441,11 @@ export default function StampingPage() {
                       ) : (
                         searchResults.map((taka: any) => {
                           const isSelected = selectedTaka.some(
-                            (s) => s.orderId === taka.orderId && s.takaNo === taka.takaNo
+                            (s) => s.orderId === taka.orderId && s.takaIndex === taka.takaIndex
                           );
                           return (
                             <TableRow 
-                              key={`${taka.orderId}-${taka.takaNo}`}
+                              key={`${taka.orderId}-${taka.takaIndex}`}
                               className={`hover:bg-muted/50 cursor-pointer transition-colors ${isSelected ? "bg-primary/5" : ""}`}
                               onClick={() => toggleSelection(taka)}
                             >
@@ -499,8 +499,8 @@ export default function StampingPage() {
                 </div>
               ) : (
                 <div className="divide-y border-b">
-                  {selectedTaka.map((taka: any) => (
-                    <div key={`${taka.orderId}-${taka.takaNo}`} className="p-4 flex items-center justify-between group hover:bg-muted/30 transition-colors">
+                  {selectedTaka.map((taka: any, _idx: number) => (
+                    <div key={`${taka.orderId}-${taka.takaIndex}`} className="p-4 flex items-center justify-between group hover:bg-muted/30 transition-colors">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
@@ -532,7 +532,7 @@ export default function StampingPage() {
                 <div className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/30 rounded-lg p-6 space-y-4">
                   <div className="text-center space-y-3">
                     {selectedTaka.map((taka: any, idx: number) => (
-                      <div key={`${taka.orderId}-${taka.takaNo}`} className={`${idx > 0 ? "mt-4 pt-4 border-t border-primary/20" : ""}`}>
+                      <div key={`${taka.orderId}-${taka.takaIndex}`} className={`${idx > 0 ? "mt-4 pt-4 border-t border-primary/20" : ""}`}>
                         <div className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Taka {idx + 1} of {selectedTaka.length}</div>
                         <div className="space-y-2">
                           <div>

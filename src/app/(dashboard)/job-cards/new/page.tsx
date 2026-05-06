@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {  useQuery, useMutation  } from "@/lib/convex-mock";
 import { api } from "@/lib/convex-mock";
+import { api as baseApi } from "@/lib/api";
 
 import { useRouter } from "next/navigation";
 
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Loader2 } from "lucide-react";
 
 
 type ColorRow = { colorName: string; shade: string; quantity: string; unit: string };
@@ -133,13 +134,47 @@ export default function NewJobCardInner() {
   const [colorRows, setColorRows] = useState<ColorRow[]>([]);
   const [chemRows, setChemRows] = useState<ChemRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [fetchingIssue, setFetchingIssue] = useState(false);
+  const [activeProcessType, setActiveProcessType] = useState<string>("");
 
   const selectedLot = lots?.find((l) => l._id === selectedLotId);
+
+  const handleLotSelect = async (lotId: string) => {
+    setSelectedLotId(lotId);
+    if (!lotId) return;
+
+    const lot = lots?.find((l) => l._id === lotId);
+    if (lot?.processType) setActiveProcessType(lot.processType);
+    else setActiveProcessType("");
+
+    setFetchingIssue(true);
+    try {
+      const issues = await baseApi.get<any[]>(`/process-issues/by-lot/${lotId}`);
+      if (issues && issues.length > 0) {
+        // Take the latest issue
+        const latestIssue = issues[issues.length - 1];
+        setMachineNo(latestIssue.machineNo || "");
+        setOperatorName(latestIssue.operatorName || "");
+        setNotes(latestIssue.remarks || "");
+        if (latestIssue.processType) setActiveProcessType(latestIssue.processType);
+        toast.success("Auto-filled details from process issue");
+      } else {
+        // Reset if no process issue data
+        setMachineNo("");
+        setOperatorName("");
+        setNotes("");
+      }
+    } catch (err) {
+      console.error("Failed to fetch process issue details", err);
+    } finally {
+      setFetchingIssue(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedLotId || !selectedLot) { toast.error("Select a lot"); return; }
-    if (!selectedLot.processType) { toast.error("Lot has no process type"); return; }
+    if (!activeProcessType) { toast.error("Lot has no process type"); return; }
 
     setSubmitting(true);
     try {
@@ -151,7 +186,7 @@ export default function NewJobCardInner() {
         partyName: selectedLot.partyName,
         marka: selectedLot.marka,
         qualityName: selectedLot.qualityName,
-        processType: selectedLot.processType,
+        processType: activeProcessType,
         inputMeter: selectedLot.balanceMeter,
         machineNo: machineNo || undefined,
         operatorName: operatorName || undefined,
@@ -205,8 +240,11 @@ export default function NewJobCardInner() {
               <Input type="date" value={jobCardDate} onChange={(e) => setJobCardDate(e.target.value)} required />
             </div>
             <div className="space-y-1.5 col-span-2">
-              <Label>Select Lot (InProcess) *</Label>
-              <Select value={selectedLotId} onValueChange={(v) => setSelectedLotId(v as string)}>
+              <Label className="flex items-center gap-2">
+                Select Lot (InProcess) *
+                {fetchingIssue && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+              </Label>
+              <Select value={selectedLotId} onValueChange={handleLotSelect}>
                 <SelectTrigger>
                   <SelectValue placeholder={lots === undefined ? "Loading…" : lots.length === 0 ? "No in-process lots" : "Select a lot"} />
                 </SelectTrigger>
@@ -223,7 +261,7 @@ export default function NewJobCardInner() {
 
           {selectedLot && (
             <div className="bg-muted/40 rounded-lg p-3 grid grid-cols-3 gap-2 text-sm">
-              <div><span className="text-muted-foreground block">Process</span><span className="font-medium">{selectedLot.processType}</span></div>
+              <div><span className="text-muted-foreground block">Process</span><span className="font-medium">{activeProcessType || "Not set"}</span></div>
               <div><span className="text-muted-foreground block">Input Meter</span><span className="font-medium">{selectedLot.balanceMeter}m</span></div>
               <div><span className="text-muted-foreground block">Quality</span><span className="font-medium">{selectedLot.qualityName || "—"}</span></div>
             </div>
