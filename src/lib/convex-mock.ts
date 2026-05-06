@@ -124,6 +124,10 @@ export const api = {
     getLotByNo: { endpoint: "/production/lot-by-no/:lotNo", method: "GET" },
     saveFinishMeter: { endpoint: "/production/save-finish-meter", method: "POST" },
   },
+  employees: {
+    list: { endpoint: "/employees", method: "GET" },
+    create: { endpoint: "/employees", method: "POST" },
+  },
 } as const;
 
 function buildUrl(endpoint: string, args: any = {}) {

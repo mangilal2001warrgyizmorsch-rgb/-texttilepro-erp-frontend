@@ -8,8 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { toast } from "sonner";
-import { Stamp, Search, CheckCircle2, Loader2, AlertCircle, Trash2 } from "lucide-react";
+import { Stamp, Search, CheckCircle2, Loader2, AlertCircle, Trash2, ChevronDown, ChevronUp, X } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -31,16 +38,39 @@ import { Label } from "@/components/ui/label";
 
 export default function StampingPage() {
   const [activeTab, setActiveTab] = useState<"pending" | "search">("search");
-  const [searchFilters, setSearchFilters] = useState({
-    takaMarka: "",
-    weaverChNo: "",
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchType, setSearchType] = useState<string>("");
+  const [searchValue, setSearchValue] = useState<string>("");
+
+  const searchFilters = {
+    takaMarka: searchType === "takaMarka" ? searchValue.trim() : "",
+    weaverChNo: searchType === "weaverChNo" ? searchValue.trim() : "",
     weaverMarka: "",
-    baleNo: "",
-    lotNo: "",
-  });
+    baleNo: searchType === "baleNo" ? searchValue.trim() : "",
+    lotNo: searchType === "lotNo" ? searchValue.trim() : "",
+  };
+
+  const isSearchReady = searchType && searchValue.trim();
+
   const [selectedTaka, setSelectedTaka] = useState<any[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Stampman State
+  const [selectedStampmanId, setSelectedStampmanId] = useState<string>("");
+  const [stampmanModalOpen, setStampmanModalOpen] = useState(false);
+  const [newEmployee, setNewEmployee] = useState({
+    empCode: "",
+    employeeName: "",
+    department: "",
+    designation: "",
+    machine: "",
+  });
+
+  const formatEmpCode = (value: string) => {
+    const raw = value.replace(/\D/g, '').substring(0, 12);
+    return raw.replace(/(\d{4})(?=\d)/g, '$1 ');
+  };
 
   // Queries
   const pendingLots = useQuery(api.stamping.listStampable, {});
@@ -48,13 +78,11 @@ export default function StampingPage() {
     activeTab === "search" ? api.stamping.searchTaka : "skip",
     searchFilters
   );
+  const employees = useQuery(api.employees.list, {});
 
   // Mutations
   const stampMultiple = useMutation(api.stamping.stampMultiple);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchFilters({ ...searchFilters, [e.target.name]: e.target.value });
-  };
+  const createEmployee = useMutation(api.employees.create);
 
   const toggleSelection = (taka: any) => {
     const isSelected = selectedTaka.some(
@@ -74,8 +102,12 @@ export default function StampingPage() {
   const handleConfirmStamping = async () => {
     setIsSubmitting(true);
     try {
+      const stampman = employees?.find((e: any) => e._id === selectedStampmanId);
       await stampMultiple({
         items: selectedTaka.map((s) => ({ orderId: s.orderId, takaNo: s.takaNo })),
+        stampmanId: stampman?._id,
+        stampmanName: stampman?.employeeName,
+        stampmanCode: stampman?.empCode,
       });
       toast.success(`${selectedTaka.length} Takas marked as Stamped`);
       setSelectedTaka([]);
@@ -86,6 +118,136 @@ export default function StampingPage() {
       setIsSubmitting(false);
     }
   };
+
+  const handleAddEmployee = async () => {
+    if (!newEmployee.empCode || !newEmployee.employeeName || !newEmployee.department || !newEmployee.designation || !newEmployee.machine) {
+      toast.error("All fields are mandatory");
+      return;
+    }
+    const rawEmpCode = newEmployee.empCode.replace(/\s/g, '');
+    if (rawEmpCode.length !== 12) {
+      toast.error("Emp Code must be exactly 12 digits");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const created = await createEmployee(newEmployee);
+      toast.success("Employee added successfully");
+      setStampmanModalOpen(false);
+      setNewEmployee({ empCode: "", employeeName: "", department: "", designation: "", machine: "" });
+      if (created?._id) {
+        setSelectedStampmanId(created._id);
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.error || e.message || "Failed to add employee");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const stampmanSelectionDialog = (
+    <Dialog open={stampmanModalOpen} onOpenChange={setStampmanModalOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add New Employee</DialogTitle>
+          <DialogDescription>Create a new Stampman in the Employee Master.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Emp Code (12 digits)</Label>
+            <Input 
+              placeholder="1234 5678 9012" 
+              value={newEmployee.empCode}
+              onChange={(e) => setNewEmployee({...newEmployee, empCode: formatEmpCode(e.target.value)})}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Employee Name</Label>
+            <Input 
+              placeholder="Name" 
+              value={newEmployee.employeeName}
+              onChange={(e) => setNewEmployee({...newEmployee, employeeName: e.target.value})}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Department</Label>
+            <Input 
+              placeholder="e.g. Stamping" 
+              value={newEmployee.department}
+              onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Designation</Label>
+            <Input 
+              placeholder="e.g. Stampman" 
+              value={newEmployee.designation}
+              onChange={(e) => setNewEmployee({...newEmployee, designation: e.target.value})}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Machine</Label>
+            <Input 
+              placeholder="Machine Name/No" 
+              value={newEmployee.machine}
+              onChange={(e) => setNewEmployee({...newEmployee, machine: e.target.value})}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setStampmanModalOpen(false)}>Cancel</Button>
+          <Button onClick={handleAddEmployee} disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Employee
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (!selectedStampmanId) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[80vh]">
+        <div className="bg-card border rounded-xl p-8 shadow-lg max-w-md w-full space-y-6">
+          <div className="text-center space-y-2">
+            <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-4">
+              <Stamp size={24} />
+            </div>
+            <h1 className="text-2xl font-bold">Select Stampman</h1>
+            <p className="text-muted-foreground text-sm">You must select a stampman before continuing.</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Stampman</Label>
+              <Select value={selectedStampmanId} onValueChange={(val) => {
+                if (val === "ADD_NEW") {
+                  setStampmanModalOpen(true);
+                } else {
+                  setSelectedStampmanId(val);
+                }
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an employee..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees?.map((emp: any) => (
+                    <SelectItem key={emp._id} value={emp._id}>
+                      {emp.employeeName} ({emp.empCode})
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="ADD_NEW" className="text-primary font-medium border-t rounded-none mt-1 pt-2 cursor-pointer">
+                    + Add New Employee
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        {stampmanSelectionDialog}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
@@ -168,13 +330,8 @@ export default function StampingPage() {
                   ) : (
                     pendingLots.map((lot: any) => (
                       <TableRow key={lot._id} className="hover:bg-muted/50 cursor-pointer" onClick={() => {
-                        setSearchFilters({
-                          takaMarka: "", 
-                          weaverChNo: "", 
-                          weaverMarka: "", 
-                          baleNo: "",
-                          lotNo: lot.lotNo
-                        });
+                        setSearchType("lotNo");
+                        setSearchValue(lot.lotNo);
                         setActiveTab("search");
                       }}>
                         <TableCell className="whitespace-nowrap">
@@ -197,60 +354,51 @@ export default function StampingPage() {
           ) : (
             <div className="space-y-6">
               <div className="bg-card border rounded-xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <Search size={20} className="text-primary" />
-                  <h2 className="font-semibold text-lg">Search Unstamped Taka</h2>
+                <div 
+                  className="flex items-center justify-between mb-4 cursor-pointer sm:cursor-default"
+                  onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Search size={20} className="text-primary" />
+                    <h2 className="font-semibold text-lg">Search Unstamped Taka</h2>
+                  </div>
+                  <div className="sm:hidden text-muted-foreground">
+                    {isSearchExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="lotNo">Lot No</Label>
-                    <Input
-                      id="lotNo"
-                      name="lotNo"
-                      placeholder="e.g. L-123"
-                      value={searchFilters.lotNo}
-                      onChange={handleSearchChange}
-                    />
+                <div className={`flex-col sm:flex-row gap-4 ${isSearchExpanded ? 'flex' : 'hidden sm:flex'}`}>
+                  <div className="w-full sm:w-[250px]">
+                    <Select value={searchType} onValueChange={(val) => { setSearchType(val); setSearchValue(""); }}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select search type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lotNo">Lot No</SelectItem>
+                        <SelectItem value="takaMarka">Taka Marka</SelectItem>
+                        <SelectItem value="weaverChNo">Weaver Challan No</SelectItem>
+                        <SelectItem value="baleNo">Bale No</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="takaMarka">Taka Marka</Label>
+                  <div className="flex-1 flex gap-2">
                     <Input
-                      id="takaMarka"
-                      name="takaMarka"
-                      placeholder="e.g. M/S 2"
-                      value={searchFilters.takaMarka}
-                      onChange={handleSearchChange}
+                      placeholder={
+                        searchType === "lotNo" ? "Enter Lot No" :
+                        searchType === "takaMarka" ? "Enter Taka Marka" :
+                        searchType === "weaverChNo" ? "Enter Weaver Challan No" :
+                        searchType === "baleNo" ? "Enter Bale No" :
+                        "Select a search type first"
+                      }
+                      value={searchValue}
+                      onChange={(e) => setSearchValue(e.target.value)}
+                      disabled={!searchType}
+                      className="flex-1"
                     />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="weaverChNo">Weaver Challan No</Label>
-                    <Input
-                      id="weaverChNo"
-                      name="weaverChNo"
-                      placeholder="e.g. W-123"
-                      value={searchFilters.weaverChNo}
-                      onChange={handleSearchChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="weaverMarka">Weaver Marka</Label>
-                    <Input
-                      id="weaverMarka"
-                      name="weaverMarka"
-                      placeholder="e.g. WM-123"
-                      value={searchFilters.weaverMarka}
-                      onChange={handleSearchChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="baleNo">Bale No</Label>
-                    <Input
-                      id="baleNo"
-                      name="baleNo"
-                      placeholder="e.g. B-001"
-                      value={searchFilters.baleNo}
-                      onChange={handleSearchChange}
-                    />
+                    {(searchType || searchValue) ? (
+                      <Button variant="outline" size="icon" onClick={() => { setSearchType(""); setSearchValue(""); }}>
+                        <X size={16} />
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -281,13 +429,13 @@ export default function StampingPage() {
                       {searchResults === undefined ? (
                         Array.from({ length: 5 }).map((_, i) => (
                           <TableRow key={i}>
-                            <TableCell colSpan={6}><Skeleton className="h-10 w-full" /></TableCell>
+                            <TableCell colSpan={7}><Skeleton className="h-10 w-full" /></TableCell>
                           </TableRow>
                         ))
                       ) : searchResults?.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-40 text-center text-muted-foreground">
-                            No matching unstamped Taka found.
+                          <TableCell colSpan={7} className="h-40 text-center text-muted-foreground">
+                            No matching records found.
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -358,7 +506,7 @@ export default function StampingPage() {
                           <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                             Lot: {taka.lotNo}
                           </span>
-                          <span className="text-sm font-bold">Taka: {taka.takaNo}</span>
+                          <span className="text-sm font-bold">Sr No: {taka.takaSerialNo}</span>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1">Marka: <span className="text-foreground font-medium">{taka.partyMarka}</span></span>
@@ -397,8 +545,8 @@ export default function StampingPage() {
                               <div className="text-2xl font-bold text-foreground">{taka.lotNo}</div>
                             </div>
                             <div>
-                              <div className="text-xs uppercase text-muted-foreground font-semibold mb-1">Taka No</div>
-                              <div className="text-2xl font-bold text-foreground">{taka.takaNo}</div>
+                              <div className="text-xs uppercase text-muted-foreground font-semibold mb-1">Sr No</div>
+                              <div className="text-2xl font-bold text-foreground">{taka.takaSerialNo}</div>
                             </div>
                             <div>
                               <div className="text-xs uppercase text-muted-foreground font-semibold mb-1">Mtr</div>
