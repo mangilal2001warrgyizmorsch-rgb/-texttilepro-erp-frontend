@@ -124,6 +124,7 @@ export const api = {
     list: { endpoint: "/production", method: "GET" },
     getLotByNo: { endpoint: "/production/lot-by-no", method: "GET" },
     saveFinishMeter: { endpoint: "/production/save-finish-meter", method: "POST" },
+    saveTpEntries: { endpoint: "/production/save-tp-entries", method: "POST" },
   },
   employees: {
     list: { endpoint: "/employees", method: "GET" },
