@@ -71,7 +71,7 @@ export default function MobileHeader() {
   const router = useRouter();
 
   const initials = user
-    ? (user.name || user.email)
+    ? (user.name || user.email || "U")
         .split(" ")
         .map((w) => w[0])
         .join("")
